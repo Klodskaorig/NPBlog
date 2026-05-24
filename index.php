@@ -4,7 +4,7 @@
     <title>Редактор</title>
     <meta charset="utf-8">
     <script>if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');</script>
-    <link rel="stylesheet" href="editor-style.css?v=1779014384">
+    <link rel="stylesheet" href="editor-style.css?v=1779014385">
 </head>
 <body>
     
@@ -712,7 +712,7 @@
     </div>
 </div>
 
-<script src="editor-main.js?v=1779014519"></script>
+<script src="editor-main.js?v=1779014520"></script>
 
 <script src="editor-img.js?v=1779014518"></script>
 

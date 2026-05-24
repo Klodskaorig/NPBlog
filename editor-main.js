@@ -2126,6 +2126,13 @@ function initImageAlignmentHandlers() {
     
     ve.addEventListener('click', function(e) {
         if (editorMode !== 'visual') return;
+        
+        // Предотвращаем переход по ссылкам и скачивание файлов при редактировании
+        const clickedLink = e.target.closest('a');
+        if (clickedLink) {
+            e.preventDefault();
+        }
+        
         var mediaWrap = e.target.closest('.blog-image-wrap');
         if (!mediaWrap) {
             var fileBtn = e.target.closest('.blog-file-button');
