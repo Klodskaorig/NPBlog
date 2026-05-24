@@ -1,4 +1,10 @@
 {
-    "history": [],
-    "index": -1
+    "history": [
+        {
+            "visual": "",
+            "code": "<div>авпавпавпвап<\/div>\n<p>авпавпавпавпавп<\/p>",
+            "mode": "visual"
+        }
+    ],
+    "index": 0
 }

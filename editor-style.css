@@ -3998,7 +3998,7 @@
             align-items: center;
             gap: 16px;
             padding: 14px 18px;
-            margin: 14px 0;
+            margin: 0;
             background: var(--bg-color);
             border: 2px solid var(--border-color, var(--text-color));
             border-radius: 12px;
@@ -4014,6 +4014,10 @@
             -moz-osx-font-smoothing: grayscale !important;
             text-rendering: optimizeLegibility !important;
             cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
         
         [data-theme="dark"] .blog-file-button {
