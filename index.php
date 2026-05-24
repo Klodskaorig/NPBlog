@@ -333,7 +333,7 @@
             </div>
         </div>
     </header>
-
+<!-- тест -->
     <form id="blogForm">
         <input class="content228 editor-field" type="text" id="title" placeholder="Заголовок статьи" required>
         <textarea class="content228 editor-field" id="content" placeholder="Содержание статьи" style="display:none;"></textarea>
