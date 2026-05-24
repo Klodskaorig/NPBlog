@@ -2,9 +2,44 @@
     "history": [
         {
             "visual": "",
-            "code": "<div>авпавпавпвап<\/div>\n<p>авпавпавпавпавп<\/p>",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "якорь",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "<span id=\"1\" data-npblog-anchor=\"true\">якорь<\/span>",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "<p><span id=\"1\" data-npblog-anchor=\"true\">якорь<\/span><\/p><p><br><\/p>",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "<p><span id=\"1\" data-npblog-anchor=\"true\">якорь<\/span><\/p><p><br><\/p>",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "<p><span id=\"1\" data-npblog-anchor=\"true\">якорь<\/span><\/p><p>рпорпроп<\/p>",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "<p>якорь<\/p><p>рпорпроп<\/p>",
+            "code": "",
+            "mode": "visual"
+        },
+        {
+            "visual": "<br>",
+            "code": "",
             "mode": "visual"
         }
     ],
-    "index": 0
+    "index": 7
 }

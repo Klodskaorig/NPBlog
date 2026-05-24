@@ -5553,10 +5553,48 @@ function loadTocList() {
             text = `${text} (#${id})`;
         }
         
-        html += `<button type="button" class="more-submenu-item" onclick="insertAnchorLink('${id}')" title="Вставить ссылку на #${id}">${text}</button>`;
+        html += `
+        <div class="toc-menu-item-row">
+            <button type="button" class="more-submenu-item" onclick="insertAnchorLink('${id}')" title="Вставить ссылку на #${id}">${text}</button>
+            <button type="button" class="toc-delete-btn" onclick="removeAnchorById('${id}', event)" title="Удалить якорь #${id}">×</button>
+        </div>`;
     });
     
     submenu.innerHTML = html;
+}
+
+function removeAnchorById(id, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    if (editorMode !== 'visual') {
+        showNotification('Якоря можно удалять только в визуальном режиме', 'warning');
+        return;
+    }
+    
+    const ve = document.getElementById('contentVisual');
+    if (!ve) return;
+    
+    const anchorSpan = ve.querySelector('[id="' + id + '"]');
+    if (anchorSpan) {
+        const parent = anchorSpan.parentNode;
+        if (parent) {
+            const hasOnlyIcon = anchorSpan.innerText.trim() === '⚓' || anchorSpan.textContent.trim() === '⚓';
+            if (hasOnlyIcon) {
+                parent.removeChild(anchorSpan);
+            } else {
+                const fragment = document.createDocumentFragment();
+                while (anchorSpan.firstChild) {
+                    fragment.appendChild(anchorSpan.firstChild);
+                }
+                parent.replaceChild(fragment, anchorSpan);
+            }
+            saveToHistory();
+            showNotification(`Якорь #${id} удален`, 'info');
+            loadTocList(); // Обновляем список сразу
+        }
+    }
 }
 
 function insertAnchorLink(id) {
@@ -5621,3 +5659,4 @@ window.addAnchor = addAnchor;
 window.toggleTocSubmenu = toggleTocSubmenu;
 window.loadTocList = loadTocList;
 window.insertAnchorLink = insertAnchorLink;
+window.removeAnchorById = removeAnchorById;
