@@ -3242,7 +3242,8 @@ document.addEventListener('DOMContentLoaded', function() {
         imgEditorCurrentFontSize = parseInt(this.value);
         fontSizeValue.textContent = imgEditorCurrentFontSize + ' px';
     });
-    
+});
+
     window.addEventListener('keydown', function(e) {
         const modal = document.getElementById('imageEditorModal');
         if (modal && modal.style.display === 'flex') {
