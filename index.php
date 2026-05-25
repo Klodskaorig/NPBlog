@@ -338,7 +338,7 @@ if (file_exists($settingsFile)) {
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='ftp.php'">Опубликовать по FTP</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='data/blog.html'">Перейти к Blog.html</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openSystemUpdateModal()">Обновить NPBlog</button>
-                    <div class="editor-menu-version">ver 2.182</div>
+                    <div class="editor-menu-version">ver 2.182.1</div>
                 </div>
             </div>
         </div>
