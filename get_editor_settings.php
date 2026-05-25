@@ -12,6 +12,7 @@ if (file_exists($settingsFile)) {
         'success' => true, 
         'settings' => [
             'hideEditorModeButtons' => false,
+            'amoledTheme' => false,
             'enableUndoRedo' => false,
             'autosaveEnabled' => false,
             'autosaveInterval' => 60,

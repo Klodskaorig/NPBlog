@@ -11,6 +11,45 @@
              --primary-color2:rgb(255, 255, 255);
         }
 
+        /* AMOLED Dark Theme */
+        [data-theme="dark"][data-amoled="true"] {
+            --bg-color: #000000;
+            --primary-color: #000000;
+        }
+
+        [data-theme="dark"][data-amoled="true"] body,
+        [data-theme="dark"][data-amoled="true"] .editor-header,
+        [data-theme="dark"][data-amoled="true"] .manage-posts,
+        [data-theme="dark"][data-amoled="true"] .manage-posts-header,
+        [data-theme="dark"][data-amoled="true"] .dialog-content,
+        [data-theme="dark"][data-amoled="true"] .editor-menu-dropdown,
+        [data-theme="dark"][data-amoled="true"] .more-menu-dropdown,
+        [data-theme="dark"][data-amoled="true"] .color-palette-popover,
+        [data-theme="dark"][data-amoled="true"] .font-size-popover,
+        [data-theme="dark"][data-amoled="true"] .font-family-popover,
+        [data-theme="dark"][data-amoled="true"] .editor-field {
+            background-color: #000000 !important;
+            background: #000000 !important;
+        }
+
+        /* Subtle borders for overlays on pitch black background */
+        [data-theme="dark"][data-amoled="true"] .dialog-content,
+        [data-theme="dark"][data-amoled="true"] .editor-menu-dropdown,
+        [data-theme="dark"][data-amoled="true"] .more-menu-dropdown,
+        [data-theme="dark"][data-amoled="true"] .color-palette-popover,
+        [data-theme="dark"][data-amoled="true"] .font-size-popover,
+        [data-theme="dark"][data-amoled="true"] .font-family-popover {
+            border: 1px solid #222222 !important;
+        }
+
+        [data-theme="dark"][data-amoled="true"] .editor-header {
+            border-bottom: 1px solid #222222 !important;
+        }
+
+        [data-theme="dark"][data-amoled="true"] .manage-posts {
+            border-left: 1px solid #222222 !important;
+        }
+
         /* Анимации редактора */
         @keyframes dialogOverlayIn {
             from { opacity: 0; }

@@ -1,10 +1,20 @@
+<?php
+$settingsFile = 'editor_settings.json';
+$amoled = false;
+if (file_exists($settingsFile)) {
+    $settings = json_decode(file_get_contents($settingsFile), true);
+    if (!empty($settings['amoledTheme'])) {
+        $amoled = true;
+    }
+}
+?>
 <!DOCTYPE html>
-<html>
+<html<?php echo $amoled ? ' data-amoled="true"' : ''; ?>>
 <head>
     <title>Редактор</title>
     <meta charset="utf-8">
     <script>if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');</script>
-    <link rel="stylesheet" href="editor-style.css?v=1779014387">
+    <link rel="stylesheet" href="editor-style.css?v=1779014388">
 </head>
 <body>
     
@@ -712,9 +722,9 @@
     </div>
 </div>
 
-<script src="editor-main.js?v=1779014521"></script>
+<script src="editor-main.js?v=1779014522"></script>
 
-<script src="editor-img.js?v=1779014518"></script>
+<script src="editor-img.js?v=1779014519"></script>
 
 <!-- Модальное окно дополнительных настроек -->
 <div id="additionalSettingsModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
@@ -942,6 +952,11 @@
                     <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
                         <input type="checkbox" id="hideEditorModeButtons" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
                         <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Скрыть кнопки "Визуально" и "Код"</span>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
+                        <input type="checkbox" id="amoledTheme" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Включить абсолютно черный фон (для AMOLED дисплеев)</span>
                     </label>
                     
                     <button type="button" onclick="saveAppearanceSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки</button>
@@ -2314,12 +2329,20 @@ function loadAndApplyAllSettings() {
                 
                 // 2. Внешний вид и экспериментальные функции
                 const hideModeButtons = settings.hideEditorModeButtons || false;
+                const amoledTheme = settings.amoledTheme || false;
                 const enableUndoRedo = settings.enableUndoRedo || false;
                 
                 const hideModeCheck = document.getElementById('hideEditorModeButtons');
+                const amoledCheck = document.getElementById('amoledTheme');
                 const enableUndoRedoCheck = document.getElementById('enableUndoRedo');
                 if (hideModeCheck) hideModeCheck.checked = hideModeButtons;
+                if (amoledCheck) amoledCheck.checked = amoledTheme;
                 if (enableUndoRedoCheck) enableUndoRedoCheck.checked = enableUndoRedo;
+                
+                window.amoledThemeEnabled = amoledTheme;
+                if (typeof updateAmoledState === 'function') {
+                    updateAmoledState();
+                }
                 
                 // Переключение отображения переключателя режимов и разделителей
                 const modeToggle = document.getElementById('headerModeToggle');
@@ -2378,13 +2401,17 @@ function loadAppearanceSettings() {
 
 function saveAppearanceSettings() {
     const hideButtons = document.getElementById('hideEditorModeButtons').checked;
+    const amoled = document.getElementById('amoledTheme').checked;
     
     fetch('save_editor_settings.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ hideEditorModeButtons: hideButtons })
+        body: JSON.stringify({ 
+            hideEditorModeButtons: hideButtons,
+            amoledTheme: amoled
+        })
     })
     .then(response => response.json())
     .then(data => {

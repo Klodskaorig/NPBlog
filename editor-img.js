@@ -43,4 +43,7 @@
             docEl.setAttribute('data-theme', 'dark');
             localStorage.setItem('theme', 'dark');
         }
+        if (typeof updateAmoledState === 'function') {
+            updateAmoledState();
+        }
     });

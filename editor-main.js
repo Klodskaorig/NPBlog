@@ -5660,3 +5660,14 @@ window.toggleTocSubmenu = toggleTocSubmenu;
 window.loadTocList = loadTocList;
 window.insertAnchorLink = insertAnchorLink;
 window.removeAnchorById = removeAnchorById;
+
+window.amoledThemeEnabled = false;
+function updateAmoledState() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (window.amoledThemeEnabled && isDark) {
+        document.documentElement.setAttribute('data-amoled', 'true');
+    } else {
+        document.documentElement.removeAttribute('data-amoled');
+    }
+}
+window.updateAmoledState = updateAmoledState;

@@ -17,6 +17,10 @@ if (isset($data['hideEditorModeButtons'])) {
     $existingSettings['hideEditorModeButtons'] = (bool)$data['hideEditorModeButtons'];
 }
 
+if (isset($data['amoledTheme'])) {
+    $existingSettings['amoledTheme'] = (bool)$data['amoledTheme'];
+}
+
 if (isset($data['enableUndoRedo'])) {
     $existingSettings['enableUndoRedo'] = (bool)$data['enableUndoRedo'];
 }
