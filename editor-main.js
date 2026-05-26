@@ -63,6 +63,9 @@
     let historyIndex = -1;
     let isRestoringHistory = false;
     let historySaveTimeout = null;
+    let lastActionType = null;
+    let lastActionTime = 0;
+    let cursorMoved = false;
     
     // Загружаем пользовательские шрифты при инициализации редактора
     function loadEditorCustomFonts() {
@@ -813,25 +816,122 @@
         }
     });
 
+    // Получить текущие начальное и конечное смещения выделения в виде символьных индексов относительно container
+    function getSelectionOffsets(container) {
+        if (!container) return { start: 0, end: 0 };
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return { start: 0, end: 0 };
+        const range = sel.getRangeAt(0);
+        
+        if (!container.contains(range.commonAncestorContainer)) {
+            return { start: 0, end: 0 };
+        }
+        
+        let start = 0;
+        let end = 0;
+        
+        const preNavigator = document.createNodeIterator(container, NodeFilter.SHOW_TEXT);
+        let currentNode;
+        while ((currentNode = preNavigator.nextNode())) {
+            if (currentNode === range.startContainer) {
+                start += range.startOffset;
+            } else if (range.startContainer !== currentNode) {
+                if (currentNode.compareDocumentPosition(range.startContainer) & Node.DOCUMENT_POSITION_PRECEDING) {
+                    // startContainer is after currentNode
+                } else {
+                    start += currentNode.length;
+                }
+            }
+            
+            if (currentNode === range.endContainer) {
+                end += range.endOffset;
+            } else if (range.endContainer !== currentNode) {
+                if (currentNode.compareDocumentPosition(range.endContainer) & Node.DOCUMENT_POSITION_PRECEDING) {
+                    // endContainer is after currentNode
+                } else {
+                    end += currentNode.length;
+                }
+            }
+        }
+        
+        return { start, end };
+    }
+
+    // Восстановить выделение по символьным смещениям относительно container
+    function setSelectionOffsets(container, start, end) {
+        if (!container) return;
+        const sel = window.getSelection();
+        if (!sel) return;
+        sel.removeAllRanges();
+        
+        const range = document.createRange();
+        let charIndex = 0;
+        let startNode = null;
+        let startOffset = 0;
+        let endNode = null;
+        let endOffset = 0;
+        
+        const preNavigator = document.createNodeIterator(container, NodeFilter.SHOW_TEXT);
+        let currentNode;
+        
+        while ((currentNode = preNavigator.nextNode())) {
+            const nodeLength = currentNode.length;
+            
+            if (!startNode && charIndex + nodeLength >= start) {
+                startNode = currentNode;
+                startOffset = start - charIndex;
+            }
+            
+            if (!endNode && charIndex + nodeLength >= end) {
+                endNode = currentNode;
+                endOffset = end - charIndex;
+            }
+            
+            charIndex += nodeLength;
+        }
+        
+        if (!startNode) {
+            startNode = container;
+            startOffset = 0;
+        }
+        if (!endNode) {
+            endNode = container;
+            endOffset = 0;
+        }
+        
+        try {
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
+            sel.addRange(range);
+        } catch (e) {
+            console.error('Error restoring selection offsets:', e);
+        }
+    }
+
     // Функции для работы с историей изменений
-    function saveToHistory() {
+    function saveToHistory(force = true) {
         if (isRestoringHistory) return;
         
         const ve = document.getElementById('contentVisual');
         const ta = document.getElementById('content');
+        if (!ve || !ta) return;
         
         const currentState = {
             visual: ve.innerHTML,
             code: ta.value,
-            mode: editorMode
+            mode: editorMode,
+            visualSelection: getSelectionOffsets(ve),
+            codeSelection: { start: ta.selectionStart, end: ta.selectionEnd }
         };
         
-        // Удаляем все состояния после текущего индекса
-        historyStack = historyStack.slice(0, historyIndex + 1);
-        
-        // Добавляем новое состояние
-        historyStack.push(currentState);
-        historyIndex++;
+        if (force) {
+            lastActionType = 'formatting';
+            cursorMoved = false;
+            // Удаляем все состояния после текущего индекса
+            historyStack = historyStack.slice(0, historyIndex + 1);
+            historyStack.push(currentState);
+            historyIndex++;
+        }
         
         updateUndoRedoButtons();
         
@@ -901,6 +1001,19 @@
         
         // Восстанавливаем обработчики для изображений и других элементов
         addColumnResizers();
+        
+        // Восстанавливаем выделение
+        if (state.mode === 'visual') {
+            ve.focus();
+            if (state.visualSelection) {
+                setSelectionOffsets(ve, state.visualSelection.start, state.visualSelection.end);
+            }
+        } else {
+            ta.focus();
+            if (state.codeSelection) {
+                ta.setSelectionRange(state.codeSelection.start, state.codeSelection.end);
+            }
+        }
         
         isRestoringHistory = false;
     }
@@ -2344,24 +2457,114 @@ initImageAlignmentHandlers();
     contentVisual.addEventListener('contextmenu', onContextMenu);
     if (contentTa) contentTa.addEventListener('contextmenu', onContextMenu);
 
-    // Обработчики для истории изменений
-    let inputTimeout = null;
-    contentVisual.addEventListener('input', function() {
+    // Обработчики для истории изменений с умной группировкой (как в MS Word)
+    function handleInputHistory(inputType, data) {
         if (isRestoringHistory) return;
-        clearTimeout(inputTimeout);
-        inputTimeout = setTimeout(() => {
-            saveToHistory();
-        }, 500); // Сохраняем через 500мс после последнего ввода
+        const now = Date.now();
+        let actionType = 'typing';
+        
+        if (inputType && inputType.startsWith('delete')) {
+            actionType = 'deleting';
+        } else if (inputType === 'insertFromPaste') {
+            actionType = 'paste';
+        }
+        
+        let startNewGroup = false;
+        if (lastActionType !== actionType) {
+            startNewGroup = true;
+        } else if (cursorMoved) {
+            startNewGroup = true;
+            cursorMoved = false;
+        } else if (now - lastActionTime > 1200) {
+            startNewGroup = true;
+        } else if (actionType === 'typing') {
+            if (!data || data === ' ' || data === '\n' || data === '\r' || /[.,!?;:()\[\]{}"'+\-*/=<>#@$%^&~`|\\-]/.test(data)) {
+                startNewGroup = true;
+            }
+        } else if (actionType === 'paste') {
+            startNewGroup = true;
+        }
+        
+        lastActionType = actionType;
+        lastActionTime = now;
+        
+        const ve = document.getElementById('contentVisual');
+        const ta = document.getElementById('content');
+        if (!ve || !ta) return;
+        
+        const currentState = {
+            visual: ve.innerHTML,
+            code: ta.value,
+            mode: editorMode,
+            visualSelection: getSelectionOffsets(ve),
+            codeSelection: { start: ta.selectionStart, end: ta.selectionEnd }
+        };
+        
+        if (startNewGroup || historyIndex === -1) {
+            historyStack = historyStack.slice(0, historyIndex + 1);
+            historyStack.push(currentState);
+            historyIndex++;
+        } else {
+            historyStack[historyIndex] = currentState;
+        }
+        
+        updateUndoRedoButtons();
+        
+        clearTimeout(historySaveTimeout);
+        historySaveTimeout = setTimeout(() => {
+            saveHistoryToFile();
+        }, 1000);
+    }
+
+    const onCursorMove = function(e) {
+        if (e.type === 'keyup') {
+            const key = e.key;
+            if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown' && 
+                key !== 'Home' && key !== 'End' && key !== 'PageUp' && key !== 'PageDown') {
+                return;
+            }
+        }
+        cursorMoved = true;
+    };
+    
+    contentVisual.addEventListener('keyup', onCursorMove);
+    contentVisual.addEventListener('click', onCursorMove);
+    if (contentTa) {
+        contentTa.addEventListener('keyup', onCursorMove);
+        contentTa.addEventListener('click', onCursorMove);
+    }
+
+    contentVisual.addEventListener('input', function(e) {
+        const inputType = e.inputType || 'insertText';
+        const data = e.data || '';
+        handleInputHistory(inputType, data);
     });
     
     if (contentTa) {
-        contentTa.addEventListener('input', function() {
-            if (isRestoringHistory) return;
-            clearTimeout(inputTimeout);
-            inputTimeout = setTimeout(() => {
-                saveToHistory();
-            }, 500);
+        contentTa.addEventListener('input', function(e) {
+            const inputType = e.inputType || 'insertText';
+            const data = e.data || '';
+            handleInputHistory(inputType, data);
         });
+    }
+
+    const onUndoRedoShortcut = function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                redoEdit();
+            } else {
+                undoEdit();
+            }
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+            e.preventDefault();
+            redoEdit();
+        }
+    };
+
+    contentVisual.addEventListener('keydown', onUndoRedoShortcut);
+    if (contentTa) {
+        contentTa.addEventListener('keydown', onUndoRedoShortcut);
     }
 
     // Обработчик для обеспечения возможности редактирования после spoiler блоков

@@ -3,7 +3,15 @@
         {
             "visual": "",
             "code": "",
-            "mode": "visual"
+            "mode": "visual",
+            "visualSelection": {
+                "start": 0,
+                "end": 0
+            },
+            "codeSelection": {
+                "start": 0,
+                "end": 0
+            }
         }
     ],
     "index": 0

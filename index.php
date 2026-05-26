@@ -196,8 +196,18 @@ if (file_exists($settingsFile)) {
             <span class="toolbar-divider" id="modeActionsDivider"></span>
             
             <div class="editor-actions" id="headerEditorActions" onmousedown="event.preventDefault()">
-                <button type="button" id="undoBtn" class="format-btn" onclick="undoEdit()" title="Отменить">↶</button>
-                <button type="button" id="redoBtn" class="format-btn" onclick="redoEdit()" title="Вернуть">↷</button>
+                <button type="button" id="undoBtn" class="format-btn" onclick="undoEdit()" title="Отменить (Ctrl+Z)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                        <path d="M3 7v6h6" />
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                    </svg>
+                </button>
+                <button type="button" id="redoBtn" class="format-btn" onclick="redoEdit()" title="Вернуть (Ctrl+Y)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                        <path d="M21 7v6h-6" />
+                        <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+                    </svg>
+                </button>
             </div>
             
             <span class="toolbar-divider" id="actionsFormattingDivider"></span>
@@ -722,7 +732,7 @@ if (file_exists($settingsFile)) {
     </div>
 </div>
 
-<script src="editor-main.js?v=1779014522"></script>
+<script src="editor-main.js?v=1779014523"></script>
 
 <script src="editor-img.js?v=1779014519"></script>
 
@@ -2764,8 +2774,12 @@ function startSystemUpdateProcess() {
                 <span>🎨</span> Редактор изображений
             </h3>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <button type="button" id="imgEditorUndoBtn" onclick="undoImgEditorState()" class="global-action-btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 14px; font-size: 14px; display: flex; align-items: center; gap: 6px;" title="Отменить последнее действие (Ctrl+Z)">
-                    <span>↩</span> Отменить
+                <button type="button" id="imgEditorUndoBtn" onclick="undoImgEditorState()" class="global-action-btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 14px; font-size: 14px; display: flex; align-items: center; gap: 8px;" title="Отменить последнее действие (Ctrl+Z)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                        <path d="M3 7v6h6" />
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                    </svg>
+                    Отменить
                 </button>
                 <button type="button" onclick="saveImgEditorChanges()" class="global-action-btn global-action-btn-primary" style="padding: 6px 18px; font-size: 14px; background: var(--accent-color); color: #fff; border: none; font-weight: bold; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
                     <span>💾</span> Сохранить
