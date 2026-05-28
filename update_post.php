@@ -14,12 +14,19 @@ $allowedTags = '<b><i><u><s><sup><sub><h2><ul><li><a><p><br><img><pre><span><div
 
 $content = $data['content'];
 
-// Функция для красивого форматирования HTML структуры
+// Функция для красивого форматирования HTML структуры с сохранением блоков <pre>
 function formatArticleContent($html) {
-    $blockTags = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'tr', 'iframe', 'audio', 'center', 'details', 'summary', 'pre', 'blockquote', 'hr'];
+    // 1. Извлекаем блоки <pre>, чтобы полностью сохранить их форматирование и пробелы
+    $preBlocks = [];
+    $formatted = preg_replace_callback('/(<pre[^>]*>[\s\S]*?<\/pre>)/i', function($matches) use (&$preBlocks) {
+        $preBlocks[] = $matches[0];
+        return '___PRE_PLACEHOLDER_' . (count($preBlocks) - 1) . '___';
+    }, $html);
+
+    $blockTags = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'tr', 'iframe', 'audio', 'center', 'details', 'summary', 'blockquote', 'hr'];
     $tagsRegex = implode('|', $blockTags);
     
-    $formatted = preg_replace('/(<(?:' . $tagsRegex . ')(?:\s+[^>]*)?>)/i', "\n$1", $html);
+    $formatted = preg_replace('/(<(?:' . $tagsRegex . ')(?:\s+[^>]*)?>)/i', "\n$1", $formatted);
     $formatted = preg_replace('/(<\/(?:' . $tagsRegex . ')>)/i', "$1\n", $formatted);
     
     $lines = explode("\n", $formatted);
@@ -31,7 +38,14 @@ function formatArticleContent($html) {
         $cleanLines[] = "        " . $trimmed;
     }
     
-    return "\n" . implode("\n", $cleanLines) . "\n    ";
+    $finalHtml = "\n" . implode("\n", $cleanLines) . "\n    ";
+
+    // 2. Восстанавливаем блоки <pre> без каких-либо изменений
+    foreach ($preBlocks as $index => $preBlock) {
+        $finalHtml = str_replace('___PRE_PLACEHOLDER_' . $index . '___', $preBlock, $finalHtml);
+    }
+
+    return $finalHtml;
 }
 
 $cleanContent = formatArticleContent($content);

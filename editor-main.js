@@ -1994,19 +1994,20 @@ function showGlobalMediaOverlay(mediaWrap) {
     overlay.style.display = 'block';
     updateOverlayPosition();
     
-    var innerMedia = mediaWrap.querySelector('img, video, audio, iframe, .blog-file-button');
+    var innerMedia = mediaWrap.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art');
     var isImg = innerMedia && innerMedia.tagName.toLowerCase() === 'img';
     var isFile = innerMedia && innerMedia.classList.contains('blog-file-button');
+    var isAscii = innerMedia && innerMedia.classList.contains('blog-ascii-art');
     
     var editBtn = overlay.querySelector('.image-toolbar-btn[data-action="edit"]');
     var resizeBtn = overlay.querySelector('.image-toolbar-btn[data-action="resize"]');
     var sizeIndicator = overlay.querySelector('.image-size-indicator');
     var resizeHandles = overlay.querySelectorAll('.image-resize-handle');
     
-    if (editBtn) editBtn.style.display = isImg ? 'flex' : 'none';
-    if (resizeBtn) resizeBtn.style.display = isFile ? 'none' : 'flex';
-    if (sizeIndicator) sizeIndicator.style.display = isFile ? 'none' : 'block';
-    resizeHandles.forEach(h => h.style.display = isFile ? 'none' : 'block');
+    if (editBtn) editBtn.style.display = (isImg || isAscii) ? 'flex' : 'none';
+    if (resizeBtn) resizeBtn.style.display = (isFile || isAscii) ? 'none' : 'flex';
+    if (sizeIndicator) sizeIndicator.style.display = (isFile || isAscii) ? 'none' : 'block';
+    resizeHandles.forEach(h => h.style.display = (isFile || isAscii) ? 'none' : 'block');
     
     var alignWrap = mediaWrap.closest('.blog-image-align-wrap');
     var align = alignWrap ? (alignWrap.style.textAlign || 'left') : 'left';
@@ -2048,12 +2049,12 @@ function updateOverlayPosition() {
     overlay.style.width = rect.width + 'px';
     overlay.style.height = rect.height + 'px';
     
-    var innerMedia = activeTarget.querySelector('img, video, audio, iframe, .blog-file-button');
+    var innerMedia = activeTarget.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art');
     var sizeIndicator = overlay.querySelector('.image-size-indicator');
     if (innerMedia && sizeIndicator) {
         var w = innerMedia.offsetWidth;
         var h = innerMedia.offsetHeight;
-        if (innerMedia.classList.contains('blog-file-button')) {
+        if (innerMedia.classList.contains('blog-file-button') || innerMedia.classList.contains('blog-ascii-art')) {
             sizeIndicator.style.display = 'none';
         } else if (w && h) {
             sizeIndicator.textContent = w + ' × ' + h + ' px';
@@ -2162,14 +2163,20 @@ function initGlobalMediaOverlayDOM() {
                 var img = activeTarget ? activeTarget.querySelector('img') : null;
                 if (img) {
                     openImageEditorModal(img);
+                } else {
+                    var ascii = activeTarget ? activeTarget.querySelector('.blog-ascii-wrap') : null;
+                    if (ascii) {
+                        openAsciiDrawer(ascii);
+                    }
                 }
             } else if (action === 'delete') {
-                var innerMedia = activeTarget ? activeTarget.querySelector('img, video, audio, iframe, .blog-file-button') : null;
+                var innerMedia = activeTarget ? activeTarget.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art') : null;
                 var isImg = innerMedia && innerMedia.tagName.toLowerCase() === 'img';
                 var isVideo = innerMedia && innerMedia.tagName.toLowerCase() === 'video';
                 var isIframe = innerMedia && innerMedia.tagName.toLowerCase() === 'iframe';
                 var isFile = innerMedia && innerMedia.classList.contains('blog-file-button');
-                var label = isImg ? 'изображение' : (isVideo || isIframe ? 'видео' : (isFile ? 'файл' : 'аудио'));
+                var isAscii = innerMedia && innerMedia.classList.contains('blog-ascii-art');
+                var label = isImg ? 'изображение' : (isVideo || isIframe ? 'видео' : (isFile ? 'файл' : (isAscii ? 'ASCII-арт' : 'аудио')));
                 
                 var targetToDelete = activeTarget;
                 
@@ -2183,6 +2190,7 @@ function initGlobalMediaOverlayDOM() {
                             targetToDelete.parentNode.removeChild(targetToDelete);
                         }
                         hideGlobalMediaOverlay();
+                        saveToHistory();
                     }
                 });
             }
@@ -5874,3 +5882,507 @@ function updateAmoledState() {
     }
 }
 window.updateAmoledState = updateAmoledState;
+
+// --- ASCII Drawing Tool Implementation ---
+let asciiGridWidth = 40;
+let asciiGridHeight = 15;
+let asciiCurrentChar = '█';
+let asciiCurrentTool = 'draw'; // 'draw', 'erase', 'fill'
+let asciiIsDrawing = false;
+let asciiHistory = [];
+let asciiHistoryIndex = -1;
+let asciiTargetWrap = null;
+
+function wrapAsciiWithControls(asciiHtml) {
+    const uniqueId = 'ascii-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    return '<div class="blog-image-align-wrap" style="text-align:center" data-image-id="' + uniqueId + '">' +
+        '<div class="blog-image-wrap">' + asciiHtml + '</div></div>';
+}
+
+function drawCell(cell) {
+    if (asciiCurrentTool === 'draw') {
+        if (cell.textContent !== asciiCurrentChar) {
+            cell.textContent = asciiCurrentChar;
+        }
+    } else if (asciiCurrentTool === 'erase') {
+        if (cell.textContent !== ' ') {
+            cell.textContent = ' ';
+        }
+    }
+}
+
+function floodFill(startX, startY, targetChar, replacementChar) {
+    if (targetChar === replacementChar) return;
+    
+    const cells = document.querySelectorAll('.ascii-cell');
+    const getCell = (x, y) => {
+        if (x < 0 || x >= asciiGridWidth || y < 0 || y >= asciiGridHeight) return null;
+        return cells[y * asciiGridWidth + x];
+    };
+    
+    const startCell = getCell(startX, startY);
+    if (!startCell || startCell.textContent !== targetChar) return;
+    
+    const queue = [[startX, startY]];
+    
+    while (queue.length > 0) {
+        const [x, y] = queue.shift();
+        const cell = getCell(x, y);
+        if (cell && cell.textContent === targetChar) {
+            cell.textContent = replacementChar;
+            
+            queue.push([x + 1, y]);
+            queue.push([x - 1, y]);
+            queue.push([x, y + 1]);
+            queue.push([x, y - 1]);
+        }
+    }
+}
+
+function changeAsciiGridSize(sizeStr) {
+    const customContainer = document.getElementById('asciiCustomSizeContainer');
+    if (sizeStr === 'custom') {
+        if (customContainer) {
+            customContainer.style.display = 'flex';
+            document.getElementById('asciiCustomWidth').value = asciiGridWidth;
+            document.getElementById('asciiCustomHeight').value = asciiGridHeight;
+        }
+        return;
+    }
+    
+    if (customContainer) {
+        customContainer.style.display = 'none';
+    }
+    
+    const parts = sizeStr.split('x');
+    const newWidth = parseInt(parts[0]);
+    const newHeight = parseInt(parts[1]);
+    
+    if (confirm('Смена размера сетки очистит текущий рисунок. Продолжить?')) {
+        asciiGridWidth = newWidth;
+        asciiGridHeight = newHeight;
+        createAsciiGrid();
+        clearAsciiHistory();
+        saveAsciiHistory();
+    } else {
+        const sizeSelect = document.getElementById('asciiGridSize');
+        if (sizeSelect) {
+            sizeSelect.value = asciiGridWidth + 'x' + asciiGridHeight;
+        }
+    }
+}
+
+function applyCustomAsciiGridSize() {
+    const widthInput = document.getElementById('asciiCustomWidth');
+    const heightInput = document.getElementById('asciiCustomHeight');
+    if (!widthInput || !heightInput) return;
+    
+    const newWidth = parseInt(widthInput.value);
+    const newHeight = parseInt(heightInput.value);
+    
+    if (isNaN(newWidth) || newWidth < 5 || newWidth > 120) {
+        showNotification('Ширина должна быть от 5 до 120 символов', 'warning');
+        return;
+    }
+    if (isNaN(newHeight) || newHeight < 5 || newHeight > 60) {
+        showNotification('Высота должна быть от 5 до 60 символов', 'warning');
+        return;
+    }
+    
+    if (confirm('Смена размера сетки очистит текущий рисунок. Продолжить?')) {
+        asciiGridWidth = newWidth;
+        asciiGridHeight = newHeight;
+        createAsciiGrid();
+        clearAsciiHistory();
+        saveAsciiHistory();
+        showNotification(`Установлен размер: ${newWidth}x${newHeight}`, 'success');
+    }
+}
+
+function createAsciiGrid(initialData = null) {
+    const gridContainer = document.getElementById('asciiGrid');
+    if (!gridContainer) return;
+    
+    gridContainer.innerHTML = '';
+    gridContainer.style.gridTemplateColumns = `repeat(${asciiGridWidth}, 9px)`;
+    gridContainer.style.gridTemplateRows = `repeat(${asciiGridHeight}, 18px)`;
+    
+    for (let y = 0; y < asciiGridHeight; y++) {
+        for (let x = 0; x < asciiGridWidth; x++) {
+            const cell = document.createElement('div');
+            cell.className = 'ascii-cell';
+            cell.setAttribute('data-x', x);
+            cell.setAttribute('data-y', y);
+            
+            const index = y * asciiGridWidth + x;
+            if (initialData && initialData[index] !== undefined) {
+                cell.textContent = initialData[index];
+            } else {
+                cell.textContent = ' ';
+            }
+            
+            cell.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                if (asciiCurrentTool === 'fill') {
+                    const targetChar = cell.textContent;
+                    floodFill(x, y, targetChar, asciiCurrentChar);
+                    saveAsciiHistory();
+                } else {
+                    asciiIsDrawing = true;
+                    drawCell(cell);
+                }
+            });
+            
+            cell.addEventListener('mouseenter', function(e) {
+                cell.classList.add('hovered');
+                if (asciiIsDrawing) {
+                    drawCell(cell);
+                }
+            });
+            
+            cell.addEventListener('mouseleave', function() {
+                cell.classList.remove('hovered');
+            });
+            
+            gridContainer.appendChild(cell);
+        }
+    }
+    
+    setTimeout(fitAsciiGridToContainer, 0);
+}
+
+function fitAsciiGridToContainer() {
+    const container = document.getElementById('asciiEditorCanvasContainer');
+    const grid = document.getElementById('asciiGrid');
+    if (!container || !grid) return;
+    
+    grid.style.transform = 'none';
+    grid.style.transformOrigin = 'center center';
+    
+    const padding = 40;
+    const containerWidth = container.clientWidth - padding;
+    const containerHeight = container.clientHeight - padding;
+    
+    const gridWidth = grid.offsetWidth;
+    const gridHeight = grid.offsetHeight;
+    
+    if (gridWidth === 0 || gridHeight === 0) return;
+    
+    const scaleX = containerWidth / gridWidth;
+    const scaleY = containerHeight / gridHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    grid.style.transform = `scale(${scale})`;
+}
+
+window.addEventListener('resize', function() {
+    const modal = document.getElementById('asciiEditorModal');
+    if (modal && modal.style.display === 'flex') {
+        fitAsciiGridToContainer();
+    }
+});
+
+// Global mouse up to end drawing
+window.addEventListener('mouseup', function() {
+    if (asciiIsDrawing) {
+        asciiIsDrawing = false;
+        saveAsciiHistory();
+    }
+});
+
+// Global shortcut keys interception (Ctrl+Z) in ASCII editor
+window.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('asciiEditorModal');
+    if (modal && modal.style.display === 'flex') {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            undoAsciiState();
+        }
+    }
+});
+
+function clearAsciiHistory() {
+    asciiHistory = [];
+    asciiHistoryIndex = -1;
+    updateAsciiUndoBtn();
+}
+
+function saveAsciiHistory() {
+    const cells = document.querySelectorAll('.ascii-cell');
+    if (cells.length === 0) return;
+    const state = Array.from(cells).map(c => c.textContent);
+    
+    asciiHistory = asciiHistory.slice(0, asciiHistoryIndex + 1);
+    asciiHistory.push(state);
+    asciiHistoryIndex++;
+    
+    updateAsciiUndoBtn();
+}
+
+function undoAsciiState() {
+    if (asciiHistoryIndex <= 0) return;
+    
+    asciiHistoryIndex--;
+    restoreAsciiHistoryState(asciiHistory[asciiHistoryIndex]);
+    updateAsciiUndoBtn();
+}
+
+function restoreAsciiHistoryState(state) {
+    const cells = document.querySelectorAll('.ascii-cell');
+    cells.forEach((cell, i) => {
+        if (state[i] !== undefined) {
+            cell.textContent = state[i];
+        }
+    });
+}
+
+function updateAsciiUndoBtn() {
+    const btn = document.getElementById('asciiEditorUndoBtn');
+    if (!btn) return;
+    btn.disabled = asciiHistoryIndex <= 0;
+    btn.style.opacity = asciiHistoryIndex <= 0 ? '0.5' : '1';
+    btn.style.cursor = asciiHistoryIndex <= 0 ? 'not-allowed' : 'pointer';
+}
+
+function setAsciiTool(tool) {
+    asciiCurrentTool = tool;
+    document.querySelectorAll('.ascii-tool-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.getElementById('ascii-tool-' + tool);
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+const asciiPresetCategories = [
+    {
+        name: 'Блоки',
+        chars: ['█', '▓', '▒', '░', '▄', '▀', '▌', '▐', '■', '▲', '▼', '◆', '●', '○', '★', '☆', '♣', '♦']
+    },
+    {
+        name: 'Линии',
+        chars: ['─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼', '╭', '╮', '╯', '╰', '╱', '╲', '╳']
+    },
+    {
+        name: 'Двойные',
+        chars: ['═', '║', '╔', '╗', '╚', '╝', '╠', '╣', '╦', '╩', '╬', '╒', '╕', '╘', '╛', '╓', '╖', '╙']
+    },
+    {
+        name: 'Стрелки',
+        chars: ['↑', '↓', '←', '→', '↖', '↗', '↘', '↙', '↔', '↕', '▲', '▼', '◀', '▶', '➔', '➜', '➘', '➚']
+    },
+    {
+        name: 'Символы',
+        chars: ['#', '@', '*', '+', '-', '=', ':', '.', 'o', 'x', 'd', 'b', 'p', 'q', '0', '1', '8', '9']
+    }
+];
+
+let asciiCurrentCategoryIndex = 0;
+
+function renderAsciiPresets() {
+    const container = document.getElementById('asciiCharPresets');
+    const indicator = document.getElementById('asciiPageIndicator');
+    if (!container) return;
+    
+    const category = asciiPresetCategories[asciiCurrentCategoryIndex];
+    if (indicator) indicator.textContent = category.name;
+    
+    container.innerHTML = '';
+    container.style.opacity = '0';
+    
+    category.chars.forEach(char => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ascii-char-preset';
+        if (char === asciiCurrentChar) {
+            btn.classList.add('active');
+        }
+        btn.textContent = char;
+        btn.onclick = function() {
+            setAsciiChar(char, btn);
+        };
+        container.appendChild(btn);
+    });
+    
+    requestAnimationFrame(() => {
+        container.style.transition = 'opacity 0.15s ease-in-out';
+        container.style.opacity = '1';
+    });
+}
+
+function nextAsciiPage() {
+    asciiCurrentCategoryIndex = (asciiCurrentCategoryIndex + 1) % asciiPresetCategories.length;
+    renderAsciiPresets();
+}
+
+function prevAsciiPage() {
+    asciiCurrentCategoryIndex = (asciiCurrentCategoryIndex - 1 + asciiPresetCategories.length) % asciiPresetCategories.length;
+    renderAsciiPresets();
+}
+
+function setAsciiChar(char, presetBtn = null) {
+    asciiCurrentChar = char;
+    
+    if (presetBtn) {
+        document.querySelectorAll('.ascii-char-preset').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        presetBtn.classList.add('active');
+    }
+}
+
+function applyCustomAsciiChar() {
+    const input = document.getElementById('asciiCustomChar');
+    if (input && input.value) {
+        setAsciiChar(input.value);
+        document.querySelectorAll('.ascii-char-preset').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        showNotification('Установлен символ: ' + input.value, 'success');
+    }
+}
+
+function openAsciiDrawer(targetWrap = null) {
+    if (editorMode !== 'visual') {
+        showNotification('ASCII Рисовалка доступна только в визуальном режиме', 'warning');
+        return;
+    }
+    
+    asciiTargetWrap = targetWrap;
+    const modal = document.getElementById('asciiEditorModal');
+    if (!modal) return;
+    
+    const customInput = document.getElementById('asciiCustomChar');
+    if (customInput) customInput.value = '';
+    
+    setAsciiTool('draw');
+    asciiCurrentCategoryIndex = 0;
+    setAsciiChar('█');
+    renderAsciiPresets();
+    
+    if (asciiTargetWrap) {
+        const width = parseInt(asciiTargetWrap.getAttribute('data-ascii-width')) || 40;
+        const height = parseInt(asciiTargetWrap.getAttribute('data-ascii-height')) || 15;
+        const gridData = JSON.parse(asciiTargetWrap.getAttribute('data-ascii-grid') || '[]');
+        
+        asciiGridWidth = width;
+        asciiGridHeight = height;
+        
+        const sizeSelect = document.getElementById('asciiGridSize');
+        const customContainer = document.getElementById('asciiCustomSizeContainer');
+        if (sizeSelect) {
+            const val = width + 'x' + height;
+            const hasOption = Array.from(sizeSelect.options).some(opt => opt.value === val);
+            if (hasOption) {
+                sizeSelect.value = val;
+                if (customContainer) customContainer.style.display = 'none';
+            } else {
+                sizeSelect.value = 'custom';
+                if (customContainer) {
+                    customContainer.style.display = 'flex';
+                    document.getElementById('asciiCustomWidth').value = width;
+                    document.getElementById('asciiCustomHeight').value = height;
+                }
+            }
+        }
+        
+        createAsciiGrid(gridData);
+    } else {
+        const sizeSelect = document.getElementById('asciiGridSize');
+        const customContainer = document.getElementById('asciiCustomSizeContainer');
+        const sizeStr = sizeSelect ? sizeSelect.value : '40x15';
+        if (sizeStr === 'custom') {
+            const widthInput = document.getElementById('asciiCustomWidth');
+            const heightInput = document.getElementById('asciiCustomHeight');
+            asciiGridWidth = widthInput ? parseInt(widthInput.value) || 40 : 40;
+            asciiGridHeight = heightInput ? parseInt(heightInput.value) || 15 : 15;
+            if (customContainer) customContainer.style.display = 'flex';
+        } else {
+            const parts = sizeStr.split('x');
+            asciiGridWidth = parseInt(parts[0]) || 40;
+            asciiGridHeight = parseInt(parts[1]) || 15;
+            if (customContainer) customContainer.style.display = 'none';
+        }
+        
+        createAsciiGrid();
+    }
+    
+    clearAsciiHistory();
+    saveAsciiHistory();
+    
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+}
+
+function closeAsciiEditor() {
+    const modal = document.getElementById('asciiEditorModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+    asciiTargetWrap = null;
+}
+
+function clearAsciiGrid() {
+    if (confirm('Очистить холст? Это действие удалит весь текущий рисунок.')) {
+        const cells = document.querySelectorAll('.ascii-cell');
+        cells.forEach(cell => {
+            cell.textContent = ' ';
+        });
+        saveAsciiHistory();
+    }
+}
+
+function saveAsciiArt() {
+    const cells = document.querySelectorAll('.ascii-cell');
+    const gridData = Array.from(cells).map(c => c.textContent);
+    
+    let textLines = [];
+    for (let y = 0; y < asciiGridHeight; y++) {
+        let line = '';
+        for (let x = 0; x < asciiGridWidth; x++) {
+            const index = y * asciiGridWidth + x;
+            line += gridData[index];
+        }
+        textLines.push(line.trimRight());
+    }
+    const plainText = textLines.join('\n');
+    
+    const gridJson = JSON.stringify(gridData).replace(/"/g, '&quot;');
+    const asciiHtml = `<pre class="blog-ascii-art">${plainText}</pre>`;
+    
+    if (asciiTargetWrap) {
+        asciiTargetWrap.setAttribute('data-ascii-width', asciiGridWidth);
+        asciiTargetWrap.setAttribute('data-ascii-height', asciiGridHeight);
+        asciiTargetWrap.setAttribute('data-ascii-grid', JSON.stringify(gridData));
+        
+        const artEl = asciiTargetWrap.querySelector('.blog-ascii-art');
+        if (artEl) {
+            artEl.textContent = plainText;
+        }
+        showNotification('ASCII-арт обновлен', 'success');
+    } else {
+        const fullHtml = wrapAsciiWithControls(
+            `<div class="blog-ascii-wrap" data-ascii-width="${asciiGridWidth}" data-ascii-height="${asciiGridHeight}" data-ascii-grid="${gridJson}">${asciiHtml}</div>`
+        );
+        insertHtmlAtCursor(fullHtml);
+        showNotification('ASCII-арт вставлен в статью', 'success');
+    }
+    
+    saveToHistory();
+    closeAsciiEditor();
+}
+
+// Export to window
+window.openAsciiDrawer = openAsciiDrawer;
+window.closeAsciiEditor = closeAsciiEditor;
+window.changeAsciiGridSize = changeAsciiGridSize;
+window.setAsciiTool = setAsciiTool;
+window.setAsciiChar = setAsciiChar;
+window.applyCustomAsciiChar = applyCustomAsciiChar;
+window.clearAsciiGrid = clearAsciiGrid;
+window.undoAsciiState = undoAsciiState;
+window.saveAsciiArt = saveAsciiArt;
+window.applyCustomAsciiGridSize = applyCustomAsciiGridSize;
+window.fitAsciiGridToContainer = fitAsciiGridToContainer;
+window.nextAsciiPage = nextAsciiPage;
+window.prevAsciiPage = prevAsciiPage;

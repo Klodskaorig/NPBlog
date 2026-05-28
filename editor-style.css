@@ -4625,3 +4625,140 @@ body {
     background: rgba(220, 53, 69, 0.12);
     transform: scale(1.15);
 }
+
+/* --- Стили для ASCII Рисовалки --- */
+.ascii-tool-btn {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+.ascii-tool-btn:hover {
+    background: rgba(33, 150, 243, 0.08) !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 8px rgba(33, 150, 243, 0.25);
+    color: var(--accent-color) !important;
+}
+[data-theme="dark"] .ascii-tool-btn:hover {
+    background: rgba(33, 150, 243, 0.12) !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.35);
+    color: #fff !important;
+}
+.ascii-tool-btn.active {
+    background: var(--accent-color) !important;
+    color: #fff !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.2), 0 2px 10px rgba(33, 150, 243, 0.5);
+    font-weight: bold;
+    transform: translateY(-1px);
+}
+
+.ascii-char-preset {
+    height: 32px;
+    font-family: monospace;
+    font-size: 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+.ascii-char-preset:hover {
+    border-color: var(--accent-color) !important;
+    background: rgba(33, 150, 243, 0.08) !important;
+    box-shadow: 0 0 6px rgba(33, 150, 243, 0.25);
+}
+.ascii-char-preset.active {
+    border-color: var(--accent-color) !important;
+    background: var(--accent-color) !important;
+    color: #fff !important;
+    font-weight: bold;
+    box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.2), 0 2px 8px rgba(33, 150, 243, 0.5);
+}
+
+.ascii-pager-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s ease;
+}
+.ascii-pager-btn:hover {
+    border-color: var(--accent-color) !important;
+    background: rgba(33, 150, 243, 0.08) !important;
+    color: var(--accent-color) !important;
+}
+
+.ascii-cell {
+    width: 9px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--text-color);
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    background: var(--bg-color);
+    opacity: 1;
+    box-sizing: border-box;
+    transition: background 0.05s ease;
+}
+.ascii-cell.hovered {
+    background: rgba(33, 150, 243, 0.25);
+    border-color: rgba(33, 150, 243, 0.5);
+}
+
+.blog-ascii-wrap {
+    display: inline-block;
+    position: relative;
+    max-width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 1px;
+}
+.blog-ascii-art {
+    margin: 0;
+    padding: 0;
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+    font-size: 14px;
+    line-height: 1.15;
+    font-weight: normal;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow-x: auto;
+    background: transparent !important;
+    color: var(--text-color);
+    border: none !important;
+    box-shadow: none !important;
+}
+[data-theme="dark"] .blog-ascii-art {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+[data-theme="dark"][data-amoled="true"] .blog-ascii-art {
+    background: transparent !important;
+    border: none !important;
+}

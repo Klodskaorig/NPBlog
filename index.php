@@ -14,7 +14,7 @@ if (file_exists($settingsFile)) {
     <title>Редактор</title>
     <meta charset="utf-8">
     <script>if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');</script>
-    <link rel="stylesheet" href="editor-style.css?v=1779014388">
+    <link rel="stylesheet" href="editor-style.css?v=1779014530">
 </head>
 <body>
     
@@ -225,6 +225,15 @@ if (file_exists($settingsFile)) {
                     <button type="button" id="btn-spoiler" class="format-btn" onclick="openSpoilerDialog()" title="Сворачиваемый блок"><span class="spoiler-icon">▼</span></button>
                     <button type="button" id="btn-marker" class="format-btn" onclick="openMarkerDialog()" title="Маркер">🖍</button>
                     <button type="button" id="btn-anchor" class="format-btn" onclick="addAnchor()" title="Добавить якорь">⚓</button>
+                    <button type="button" id="btn-ascii" class="format-btn" onclick="openAsciiDrawer()" title="ASCII Рисовалка">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="9" y1="3" x2="9" y2="21"/>
+                            <line x1="15" y1="3" x2="15" y2="21"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="3" y1="15" x2="21" y2="15"/>
+                        </svg>
+                    </button>
                 </span>
                 <span class="toolbar-divider"></span>
                 <span class="toolbar-group">
@@ -348,7 +357,7 @@ if (file_exists($settingsFile)) {
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='ftp.php'">Опубликовать по FTP</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='data/blog.html'">Перейти к Blog.html</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openSystemUpdateModal()">Обновить NPBlog</button>
-                    <div class="editor-menu-version">ver 2.187</div>
+                    <div class="editor-menu-version">ver 2.188</div>
                 </div>
             </div>
         </div>
@@ -732,7 +741,7 @@ if (file_exists($settingsFile)) {
     </div>
 </div>
 
-<script src="editor-main.js?v=1779014523"></script>
+<script src="editor-main.js?v=1779014530"></script>
 
 <script src="editor-img.js?v=1779014519"></script>
 
@@ -2863,6 +2872,107 @@ function startSystemUpdateProcess() {
             <!-- Центральная область холста -->
             <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px; overflow: auto; position: relative;" id="imgEditorCanvasContainer">
                 <canvas id="imgEditorCanvas" style="box-shadow: 0 4px 30px rgba(0,0,0,0.15); max-width: 100%; max-height: 100%; object-fit: contain; cursor: crosshair; background-image: radial-gradient(var(--border-color) 15%, transparent 16%), radial-gradient(var(--border-color) 15%, transparent 16%); background-size: 16px 16px; background-position: 0 0, 8px 8px; background-color: var(--bg-color); border: 1px dashed var(--border-color);"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно Редактора ASCII-арта -->
+<div id="asciiEditorModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10006; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: var(--bg-color); border-radius: 16px; max-width: 95vw; width: 1000px; height: 85vh; box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border-color);">
+        <!-- Заголовок -->
+        <div style="padding: 15px 25px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.03);">
+            <h3 style="margin: 0; color: var(--text-color); font-size: 20px; display: flex; align-items: center; gap: 10px;">
+                <span>👾</span> ASCII Рисовалка
+            </h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="button" id="asciiEditorUndoBtn" onclick="undoAsciiState()" class="global-action-btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 14px; font-size: 14px; display: flex; align-items: center; gap: 8px;" title="Отменить (Ctrl+Z)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                        <path d="M3 7v6h6" />
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                    </svg>
+                    Отменить
+                </button>
+                <button type="button" onclick="saveAsciiArt()" class="global-action-btn global-action-btn-primary" style="padding: 6px 18px; font-size: 14px; background: var(--accent-color); color: #fff; border: none; font-weight: bold; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <span>💾</span> Сохранить
+                </button>
+                <button type="button" onclick="closeAsciiEditor()" style="background: transparent; border: none; font-size: 32px; color: var(--text-color); cursor: pointer; line-height: 1; padding: 0 5px; margin-left: 10px;">×</button>
+            </div>
+        </div>
+        
+        <!-- Основная область -->
+        <div style="flex: 1; display: flex; overflow: hidden; background: rgba(0,0,0,0.05);">
+            <!-- Левая панель инструментов -->
+            <div style="width: 260px; border-right: 2px solid var(--border-color); background: var(--bg-color); display: flex; flex-direction: column; gap: 20px; padding: 25px; overflow-y: auto;">
+                
+                <!-- Размер сетки -->
+                <div>
+                    <h4 style="margin: 0 0 10px 0; color: var(--text-color); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7;">Размер сетки</h4>
+                    <select id="asciiGridSize" onchange="changeAsciiGridSize(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-weight: 500; cursor: pointer; margin-bottom: 8px;">
+                        <option value="20x10">Маленький (20x10)</option>
+                        <option value="40x15" selected>Средний (40x15)</option>
+                        <option value="60x20">Большой (60x20)</option>
+                        <option value="80x25">Огромный (80x25)</option>
+                        <option value="custom">Свой размер...</option>
+                    </select>
+                    
+                    <div id="asciiCustomSizeContainer" style="display: none; gap: 6px; align-items: center; margin-top: 8px;">
+                        <input type="number" id="asciiCustomWidth" min="5" max="120" value="40" style="width: 60px; padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); text-align: center;" title="Ширина (колонки)">
+                        <span style="color: var(--text-color); opacity: 0.7;">×</span>
+                        <input type="number" id="asciiCustomHeight" min="5" max="60" value="15" style="width: 60px; padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); text-align: center;" title="Высота (строки)">
+                        <button type="button" onclick="applyCustomAsciiGridSize()" style="flex: 1; padding: 6px; border-radius: 6px; border: none; background: var(--accent-color); color: #fff; font-size: 12px; cursor: pointer; font-weight: bold;">ОК</button>
+                    </div>
+                </div>
+                
+                <!-- Инструменты -->
+                <div>
+                    <h4 style="margin: 0 0 10px 0; color: var(--text-color); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7;">Инструменты</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        <button type="button" class="ascii-tool-btn active" id="ascii-tool-draw" onclick="setAsciiTool('draw')">
+                            ✏️ Рисовать
+                        </button>
+                        <button type="button" class="ascii-tool-btn" id="ascii-tool-erase" onclick="setAsciiTool('erase')">
+                            🧼 Ластик
+                        </button>
+                        <button type="button" class="ascii-tool-btn" id="ascii-tool-fill" onclick="setAsciiTool('fill')" style="grid-column: span 2;">
+                            🪣 Заливка
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Выбор символа -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: var(--text-color); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7;">Символ для рисования</h4>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <button type="button" onclick="prevAsciiPage()" class="ascii-pager-btn" id="asciiPrevPageBtn" title="Предыдущая группа">◀</button>
+                            <span id="asciiPageIndicator" style="color: var(--text-color); font-size: 11px; opacity: 0.8; font-weight: bold; min-width: 65px; text-align: center;">Блоки</span>
+                            <button type="button" onclick="nextAsciiPage()" class="ascii-pager-btn" id="asciiNextPageBtn" title="Следующая группа">▶</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 12px; min-height: 108px;" id="asciiCharPresets">
+                        <!-- Пресеты символов заполняются динамически -->
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="asciiCustomChar" maxlength="1" placeholder="Свой" style="width: 50px; text-align: center; padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-family: monospace; font-size: 16px;">
+                        <button type="button" onclick="applyCustomAsciiChar()" style="flex: 1; padding: 6px; border-radius: 6px; border: none; background: var(--accent-color); color: #fff; font-size: 12px; cursor: pointer; font-weight: bold;">Применить</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: auto;">
+                    <button type="button" onclick="clearAsciiGrid()" class="global-action-btn" style="width: 100%; justify-content: center; background: transparent; border: 1px solid rgba(244, 67, 54, 0.4); color: #f44336; padding: 10px; font-size: 13px; font-weight: 500; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        🗑️ Очистить холст
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Центральная область холста -->
+            <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px; overflow: auto; position: relative;" id="asciiEditorCanvasContainer">
+                <div id="asciiGrid" style="display: grid; border: 1px solid var(--border-color); background: var(--bg-color); box-shadow: 0 4px 30px rgba(0,0,0,0.15); max-width: 100%; cursor: crosshair; user-select: none; -webkit-user-select: none;">
+                    <!-- Ячейки сетки генерируются динамически через JS -->
+                </div>
             </div>
         </div>
     </div>
