@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 require_once 'background_functions.php';
@@ -11,7 +12,7 @@ if ($postId) {
     
     // Проверяем существование файла фона если он указан
     if ($settings && isset($settings['background'])) {
-        $bgFile = 'data/backgrounds/' . $settings['background'];
+        $bgFile = getDataPath('backgrounds/') . $settings['background'];
         if (!file_exists($bgFile)) {
             // Файл не существует, удаляем запись о фоне
             unset($settings['background']);
@@ -36,7 +37,7 @@ if ($postId) {
     // Проверяем существование файлов для всех фонов
     foreach ($backgrounds as $id => $settings) {
         if (isset($settings['background'])) {
-            $bgFile = 'data/backgrounds/' . $settings['background'];
+            $bgFile = getDataPath('backgrounds/') . $settings['background'];
             if (!file_exists($bgFile)) {
                 // Файл не существует, удаляем запись о фоне
                 unset($backgrounds[$id]['background']);

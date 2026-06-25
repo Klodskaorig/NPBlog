@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -36,17 +37,18 @@ if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
     exit;
 }
 
-if (!file_exists('data/uploads')) {
-    mkdir('data/uploads', 0777, true);
+$uploadsDir = getDataPath('uploads');
+if (!file_exists($uploadsDir)) {
+    mkdir($uploadsDir, 0777, true);
 }
 
 $newFileName = 'edit_' . uniqid() . '.' . $type;
-$uploadPath = 'data/uploads/' . $newFileName;
+$uploadPath = getDataPath('uploads/') . $newFileName;
 
 if (file_put_contents($uploadPath, $imageData)) {
     echo json_encode([
         'success' => true,
-        'url' => '/data/uploads/' . $newFileName
+        'url' => getDataUrl('uploads/' . $newFileName)
     ]);
 } else {
     echo json_encode(['success' => false, 'error' => 'Не удалось сохранить файл на сервере']);

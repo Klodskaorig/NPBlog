@@ -1,7 +1,9 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
-$data = json_decode(file_get_contents('php://input'), true);
+$rawInput = file_get_contents(php_sapi_name() === 'cli' ? 'php://stdin' : 'php://input');
+$data = json_decode($rawInput, true);
 
 if (!$data || !isset($data['title']) || !isset($data['content'])) {
     echo json_encode(['success' => false, 'error' => 'Отсутствуют необходимые данные']);
@@ -11,6 +13,21 @@ if (!$data || !isset($data['title']) || !isset($data['content'])) {
 $allowedTags = '<b><i><u><s><sup><sub><h2><ul><li><a><p><br><img><pre><span><div><iframe><audio><source><center><details><summary><mark>';
 
 $content = $data['content'];
+
+// Заменяем все пути serve_data.php на статические прямые пути для готовой статьи
+$editorSettingsFile = __DIR__ . '/editor_settings.json';
+$editorSettings = [];
+if (file_exists($editorSettingsFile)) {
+    $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+}
+$dataDir = isset($editorSettings['data_path']) ? $editorSettings['data_path'] : '';
+if (empty($dataDir)) {
+    $dataDir = __DIR__ . '/data/';
+}
+$dirName = basename(rtrim(str_replace('\\', '/', $dataDir), '/'));
+$staticPrefix = '/' . $dirName . '/';
+$content = preg_replace('/(?:https?:\/\/[^\/]+)?(?:\/)?serve_data.php\?file=/i', $staticPrefix, $content);
+$content = preg_replace('/(?:[?&]|&amp;)t=\d+/i', '', $content);
 
 // Функция для красивого форматирования HTML структуры с сохранением блоков <pre>
 function formatArticleContent($html) {
@@ -47,9 +64,9 @@ function formatArticleContent($html) {
 }
 
 $cleanContent = formatArticleContent($content);
-$blogDir = 'data/blog/';
+$blogDir = getDataPath('blog/');
 if (!is_dir($blogDir)) {
-    mkdir($blogDir, 0755, true);
+    mkdir($blogDir, 0777, true);
 }
 
 $maxId = 0;
@@ -67,9 +84,10 @@ $nextId = $maxId + 1;
 $date = date('d.m.Y H:i');
 
 // Получаем шаблон
-$templateFile = 'data/blog/template_post.html';
+require_once 'templates_helper.php';
+$templateFile = getTemplatePath();
 if (!file_exists($templateFile)) {
-    echo json_encode(['success' => false, 'error' => 'Файл шаблона template_post.html не найден']);
+    echo json_encode(['success' => false, 'error' => 'Файл шаблона не найден']);
     exit;
 }
 
@@ -82,15 +100,34 @@ $title = htmlspecialchars($data['title']);
 require_once 'get_custom_fonts_css.php';
 $customFontsCss = getCustomFontsCss();
 
+// Добавляем метатеги для SEO и соцсетей
+require_once 'seo_helper.php';
+$seoMetaBlock = generateSeoMetaTagsBlock($nextId, $data['title'], $cleanContent);
+
 // Заменяем плейсхолдеры в шаблоне
 $articleHtml = str_replace('{{POST_ID}}', $nextId, $articleHtml);
 $articleHtml = str_replace('{{TITLE}}', $title, $articleHtml);
 $articleHtml = str_replace('{{DATE}}', $date, $articleHtml);
-$articleHtml = str_replace('{{CONTENT}}', $cleanContent, $articleHtml);
+$articleHtml = str_replace('{{META_TAGS}}', $seoMetaBlock, $articleHtml);
 $articleHtml = str_replace('{{CUSTOM_FONTS}}', $customFontsCss, $articleHtml);
-$articleHtml = str_replace('{{BODY_STYLE}}', '', $articleHtml);
+
+$editorSettingsFile = __DIR__ . '/editor_settings.json';
+$editorSettings = [];
+if (file_exists($editorSettingsFile)) {
+    $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+}
+$contentWidth = isset($editorSettings['contentWidth']) ? (int)$editorSettings['contentWidth'] : 920;
+$bodyStyle = "style=\"max-width: {$contentWidth}px;\"";
+$articleHtml = str_replace('{{BODY_STYLE}}', $bodyStyle, $articleHtml);
 $articleHtml = str_replace('{{CONTENT_WRAPPER_START}}', '', $articleHtml);
 $articleHtml = str_replace('{{CONTENT_WRAPPER_END}}', '', $articleHtml);
+
+// Вставляем контент статьи в самую последнюю очередь
+$wrappedContent = $cleanContent;
+if (strpos($articleHtml, 'id="npblog-post-content"') === false) {
+    $wrappedContent = '<article id="npblog-post-content" class="content">' . $cleanContent . '</article>';
+}
+$articleHtml = str_replace('{{CONTENT}}', $wrappedContent, $articleHtml);
 
 // Сохраняем файл статьи
 $filename = $blogDir . 'post-' . $nextId . '.html';

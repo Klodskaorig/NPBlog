@@ -1,7 +1,9 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
-$data = json_decode(file_get_contents('php://input'), true);
+$rawInput = file_get_contents(php_sapi_name() === 'cli' ? 'php://stdin' : 'php://input');
+$data = json_decode($rawInput, true);
 
 if (!$data || !isset($data['id']) || !isset($data['title']) || !isset($data['content'])) {
     echo json_encode(['success' => false, 'error' => 'Отсутствуют необходимые данные']);
@@ -13,6 +15,21 @@ $postId = $data['id'];
 $allowedTags = '<b><i><u><s><sup><sub><h2><ul><li><a><p><br><img><pre><span><div><iframe><audio><source><center><details><summary><mark>';
 
 $content = $data['content'];
+
+// Заменяем все пути serve_data.php на статические прямые пути для готовой статьи
+$editorSettingsFile = __DIR__ . '/editor_settings.json';
+$editorSettings = [];
+if (file_exists($editorSettingsFile)) {
+    $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+}
+$dataDir = isset($editorSettings['data_path']) ? $editorSettings['data_path'] : '';
+if (empty($dataDir)) {
+    $dataDir = __DIR__ . '/data/';
+}
+$dirName = basename(rtrim(str_replace('\\', '/', $dataDir), '/'));
+$staticPrefix = '/' . $dirName . '/';
+$content = preg_replace('/(?:https?:\/\/[^\/]+)?(?:\/)?serve_data.php\?file=/i', $staticPrefix, $content);
+$content = preg_replace('/(?:[?&]|&amp;)t=\d+/i', '', $content);
 
 // Функция для красивого форматирования HTML структуры с сохранением блоков <pre>
 function formatArticleContent($html) {
@@ -49,7 +66,8 @@ function formatArticleContent($html) {
 }
 
 $cleanContent = formatArticleContent($content);
-$metaFile = 'data/blog/posts-meta.json';
+$blogDir = getDataPath('blog/');
+$metaFile = $blogDir . 'posts-meta.json';
 if (!file_exists($metaFile)) {
     echo json_encode(['success' => false, 'error' => 'Метаданные не найдены']);
     exit;
@@ -81,9 +99,10 @@ $currentDate = date('d.m.Y H:i');
 
 
 // Получаем шаблон
-$templateFile = 'data/blog/template_post.html';
+require_once 'templates_helper.php';
+$templateFile = getTemplatePath($postId);
 if (!file_exists($templateFile)) {
-    echo json_encode(['success' => false, 'error' => 'Файл шаблона template_post.html не найден']);
+    echo json_encode(['success' => false, 'error' => 'Файл шаблона не найден']);
     exit;
 }
 
@@ -97,18 +116,37 @@ $displayDate = $originalDate . ' (отредактировано)';
 require_once 'get_custom_fonts_css.php';
 $customFontsCss = getCustomFontsCss();
 
+// Добавляем метатеги для SEO и соцсетей
+require_once 'seo_helper.php';
+$seoMetaBlock = generateSeoMetaTagsBlock($postId, $data['title'], $cleanContent);
+
 // Заменяем плейсхолдеры в шаблоне
 $articleHtml = str_replace('{{POST_ID}}', $postId, $articleHtml);
 $articleHtml = str_replace('{{TITLE}}', $title, $articleHtml);
 $articleHtml = str_replace('{{DATE}}', $displayDate, $articleHtml);
-$articleHtml = str_replace('{{CONTENT}}', $cleanContent, $articleHtml);
+$articleHtml = str_replace('{{META_TAGS}}', $seoMetaBlock, $articleHtml);
 $articleHtml = str_replace('{{CUSTOM_FONTS}}', $customFontsCss, $articleHtml);
-$articleHtml = str_replace('{{BODY_STYLE}}', '', $articleHtml);
+
+$editorSettingsFile = __DIR__ . '/editor_settings.json';
+$editorSettings = [];
+if (file_exists($editorSettingsFile)) {
+    $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+}
+$contentWidth = isset($editorSettings['contentWidth']) ? (int)$editorSettings['contentWidth'] : 920;
+$bodyStyle = "style=\"max-width: {$contentWidth}px;\"";
+$articleHtml = str_replace('{{BODY_STYLE}}', $bodyStyle, $articleHtml);
 $articleHtml = str_replace('{{CONTENT_WRAPPER_START}}', '', $articleHtml);
 $articleHtml = str_replace('{{CONTENT_WRAPPER_END}}', '', $articleHtml);
 
+// Вставляем контент статьи в самую последнюю очередь
+$wrappedContent = $cleanContent;
+if (strpos($articleHtml, 'id="npblog-post-content"') === false) {
+    $wrappedContent = '<article id="npblog-post-content" class="content">' . $cleanContent . '</article>';
+}
+$articleHtml = str_replace('{{CONTENT}}', $wrappedContent, $articleHtml);
+
 // Сохраняем обновленный файл
-$filename = 'data/blog/' . $meta[$postIndex]['filename'];
+$filename = $blogDir . $meta[$postIndex]['filename'];
 file_put_contents($filename, $articleHtml);
 
 // Создаем бэкап перед обновлением

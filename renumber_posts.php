@@ -1,11 +1,12 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 require_once 'background_functions.php';
 
 // Функция для перенумерации статей
 function renumberPosts() {
-    $metaFile = 'data/blog/posts-meta.json';
+    $metaFile = getDataPath('blog/posts-meta.json');
     $backupMetaFile = 'data_backup/backup-meta.json';
     
     if (!file_exists($metaFile)) {
@@ -47,8 +48,8 @@ function renumberPosts() {
             ];
             
             // Переименовываем файл статьи
-            $oldFilename = 'data/blog/post-' . $oldId . '.html';
-            $newFilename = 'data/blog/post-' . $newId . '.html';
+            $oldFilename = getDataPath('blog/post-') . $oldId . '.html';
+            $newFilename = getDataPath('blog/post-') . $newId . '.html';
             
             if (file_exists($oldFilename)) {
                 // Читаем содержимое и обновляем внутренние ссылки если есть
@@ -64,8 +65,8 @@ function renumberPosts() {
                     $extension = $match[1];
                     $newBgFile = 'bg-' . $newId . '.' . $extension;
                     
-                    $oldBgPath = 'data/backgrounds/' . $oldBgFile;
-                    $newBgPath = 'data/backgrounds/' . $newBgFile;
+                    $oldBgPath = getDataPath('backgrounds/') . $oldBgFile;
+                    $newBgPath = getDataPath('backgrounds/') . $newBgFile;
                     
                     if (file_exists($oldBgPath)) {
                         rename($oldBgPath, $newBgPath);
@@ -155,7 +156,7 @@ function renumberPosts() {
 
 // Проверка нумерации без изменений
 function checkNumbering() {
-    $metaFile = 'data/blog/posts-meta.json';
+    $metaFile = getDataPath('blog/posts-meta.json');
     
     if (!file_exists($metaFile)) {
         return ['success' => false, 'error' => 'Файл метаданных не найден'];

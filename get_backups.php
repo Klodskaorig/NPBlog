@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $backupMetaFile = 'data_backup/backup-meta.json';

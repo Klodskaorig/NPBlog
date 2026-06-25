@@ -1,3 +1,8 @@
+// Детекция Android для применения специальных шрифтов
+if (/Android/i.test(navigator.userAgent)) {
+    document.documentElement.classList.add('is-android');
+}
+
 function toggleTheme() {
     const html = document.documentElement;
     const currentTheme = html.getAttribute('data-theme');
@@ -107,8 +112,18 @@ function downloadImage() {
 async function applyGlobalSettings() {
     try {
         // Загружаем глобальные настройки
-        const globalRes = await fetch('../../data/global-settings.json?t=' + Date.now());
+        const globalRes = await fetch('../global-settings.json?t=' + Date.now());
         const globalSettings = globalRes.ok ? await globalRes.json() : {};
+        
+        // Скрываем или показываем "Powered by NPBlog"
+        const poweredBy = document.querySelector('.powered-by');
+        if (poweredBy) {
+            if (globalSettings.hidePoweredBy) {
+                poweredBy.style.display = 'none';
+            } else {
+                poweredBy.style.display = '';
+            }
+        }
         
         // Получаем ID статьи
         const metaTag = document.querySelector('meta[name="post-id"]');
@@ -117,7 +132,7 @@ async function applyGlobalSettings() {
         // Загружаем настройки фонов для статей
         let postBackgrounds = {};
         try {
-            const bgRes = await fetch('../../data/post_backgrounds.json?t=' + Date.now());
+            const bgRes = await fetch('../post_backgrounds.json?t=' + Date.now());
             if (bgRes.ok) {
                 postBackgrounds = await bgRes.json();
             }
@@ -154,11 +169,11 @@ function applyBackground(settings) {
     
     let backgroundStyle = '';
     if (bgMode === 'repeat') {
-        backgroundStyle = `url('../../data/backgrounds/${bgFile}') repeat auto`;
+        backgroundStyle = `url('../backgrounds/${bgFile}') repeat auto`;
     } else if (bgMode === 'contain') {
-        backgroundStyle = `url('../../data/backgrounds/${bgFile}') no-repeat center/contain`;
+        backgroundStyle = `url('../backgrounds/${bgFile}') no-repeat center/contain`;
     } else { // cover
-        backgroundStyle = `url('../../data/backgrounds/${bgFile}') no-repeat center/cover`;
+        backgroundStyle = `url('../backgrounds/${bgFile}') no-repeat center/cover`;
     }
     
     if (bgScope === 'fullpage') {

@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 // Функция для генерации CSS с @font-face правилами для пользовательских шрифтов
 function getCustomFontsCss() {
-    $fontsDir = 'data/fonts/';
+    $fontsDir = getDataPath('fonts/');
     $css = '';
     
     if (is_dir($fontsDir)) {

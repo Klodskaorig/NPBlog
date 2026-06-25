@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 $settingsFile = 'editor_settings.json';
 $amoled = false;
 if (file_exists($settingsFile)) {
@@ -13,8 +14,12 @@ if (file_exists($settingsFile)) {
 <head>
     <title>Редактор</title>
     <meta charset="utf-8">
-    <script>if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');</script>
-    <link rel="stylesheet" href="editor-style.css?v=1779014530">
+    <script>
+        if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        if(/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('is-android');
+        const DATA_URL_PREFIX = '<?php echo getDataUrl(); ?>';
+    </script>
+    <link rel="stylesheet" href="editor-style.css?v=1779014532">
 </head>
 <body>
     
@@ -55,6 +60,7 @@ if (file_exists($settingsFile)) {
         </div>
     </div>
 
+
     <!-- Менеджер бэкапов -->
     <div class="backup-manager-overlay" id="backupManagerOverlay">
         <div class="backup-manager-dialog">
@@ -68,82 +74,7 @@ if (file_exists($settingsFile)) {
         </div>
     </div>
 
-    <!-- Диалог подтверждения удаления бэкапа -->
-    <div class="delete-backup-overlay" id="deleteBackupOverlay">
-        <div class="delete-backup-dialog">
-            <div class="delete-backup-header">
-                <div class="delete-backup-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L1 21h22L12 2zm0 3.5L19.5 19h-15L12 5.5zM11 10v4h2v-4h-2zm0 5v2h2v-2h-2z"/>
-                    </svg>
-                </div>
-                <h2 class="delete-backup-title">Удалить бэкап?</h2>
-            </div>
-            <div class="delete-backup-message">
-                Вы собираетесь удалить бэкап. Это действие необратимо.
-            </div>
-            <div class="delete-backup-warning">
-                ⚠ Внимание! После удаления восстановить бэкап будет невозможно.
-            </div>
-            <div class="delete-backup-confirm-text">
-                Для подтверждения введите слово <strong>УДАЛИТЬ</strong>:
-            </div>
-            <input type="text" class="delete-backup-input" id="deleteBackupConfirmInput" placeholder="УДАЛИТЬ">
-            <div class="delete-backup-buttons">
-                <button class="delete-backup-btn cancel" onclick="closeDeleteBackup()">Отмена</button>
-                <button class="delete-backup-btn delete" id="confirmDeleteBackupBtn" disabled onclick="openFinalDeleteConfirm()">Удалить бэкап</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- Финальное подтверждение удаления -->
-    <div class="final-delete-overlay" id="finalDeleteOverlay">
-        <div class="final-delete-dialog">
-            <h2 class="final-delete-title">⚠ ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ ⚠</h2>
-            <div class="final-delete-message">
-                Вы действительно хотите безвозвратно удалить этот бэкап?
-            </div>
-            <div class="final-delete-checkbox-wrap">
-                <label class="final-delete-checkbox-label">
-                    <input type="checkbox" class="final-delete-checkbox" id="finalDeleteCheckbox">
-                    <span class="final-delete-checkbox-text">
-                        Я осознаю все риски и согласен с безвозвратным удалением этого бэкапа. Я понимаю, что восстановить его будет невозможно.
-                    </span>
-                </label>
-            </div>
-            <div class="final-delete-buttons">
-                <button class="final-delete-btn cancel" onclick="closeFinalDelete()">Отмена</button>
-                <button class="final-delete-btn confirm" id="finalDeleteBtn" disabled onclick="executeFinalDelete()">УДАЛИТЬ НАВСЕГДА</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Диалог подтверждения восстановления -->
-    <div class="restore-backup-overlay" id="restoreBackupOverlay">
-        <div class="restore-backup-dialog">
-            <div class="restore-backup-header">
-                <div class="restore-backup-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
-                    </svg>
-                </div>
-                <h2 class="restore-backup-title">Восстановить бэкап?</h2>
-            </div>
-            <div class="restore-backup-message">
-                Вы собираетесь восстановить статью из бэкапа. Текущая версия статьи будет заменена.
-            </div>
-            <div class="restore-backup-info" id="restoreBackupInfo">
-                <!-- Информация о бэкапе будет добавлена через JS -->
-            </div>
-            <div class="restore-backup-warning">
-                ⚠ Внимание! Текущая версия статьи будет перезаписана содержимым из бэкапа.
-            </div>
-            <div class="restore-backup-buttons">
-                <button class="restore-backup-btn cancel" onclick="closeRestoreBackup()">Отмена</button>
-                <button class="restore-backup-btn restore" onclick="confirmRestoreBackup()">Восстановить</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Диалог проверки нумерации -->
     <div class="numbering-check-overlay" id="numberingCheckOverlay">
@@ -235,20 +166,20 @@ if (file_exists($settingsFile)) {
                         </svg>
                     </button>
                 </span>
-                <span class="toolbar-divider"></span>
-                <span class="toolbar-group">
+                <span class="toolbar-divider" id="divider-align"></span>
+                <span class="toolbar-group" id="align-group">
                     <button type="button" class="format-btn" onclick="alignText('left')" title="По левому краю">◄</button>
                     <button type="button" class="format-btn" onclick="alignText('center')" title="По центру">≡</button>
                     <button type="button" class="format-btn" onclick="alignText('right')" title="По правому краю">►</button>
                 </span>
-                <span class="toolbar-divider"></span>
+                <span class="toolbar-divider" id="divider-media"></span>
                 <span class="toolbar-group">
                     <button type="button" class="format-btn" onclick="addLink()" title="Ссылка">🔗</button>
                     <button type="button" class="format-btn" onclick="showImageUpload()" title="Добавить изображение">📷</button>
-                    <button type="button" class="format-btn" onclick="showMediaDialog()" title="Добавить медиа">🎬</button>
+                    <button type="button" class="format-btn" id="btn-media" onclick="showMediaDialog()" title="Добавить медиа">🎬</button>
                 </span>
-                <span class="toolbar-divider"></span>
-                <span class="toolbar-group">
+                <span class="toolbar-divider" id="divider-fonts"></span>
+                <span class="toolbar-group" id="fonts-group">
                     <div class="font-size-picker-wrap" id="fontSizeWrapMain">
                         <button type="button" id="fontSizeBtn" class="format-btn font-size-picker-btn" title="Размер шрифта">14px</button>
                         <div class="font-size-popover">
@@ -329,6 +260,14 @@ if (file_exists($settingsFile)) {
                                 </div>
                             </button>
                             <button type="button" class="more-menu-item" onclick="openFileUploadDialog()">Загрузить файл</button>
+                            <button type="button" class="more-menu-item" onclick="insertCode()">Вставить блок кода</button>
+                            <button type="button" class="more-menu-item" onclick="openSmileSetsDialog()">Наборы смайлов</button>
+                            <button type="button" class="more-menu-item has-submenu" onclick="toggleSmilesSubmenu(event)">
+                                Смайлы
+                                <div class="more-submenu" id="smilesSubmenu">
+                                    <div class="more-submenu-empty">Загрузка...</div>
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </span>
@@ -349,15 +288,17 @@ if (file_exists($settingsFile)) {
                 <button type="button" class="editor-menu-btn" id="editorMenuBtn" aria-haspopup="true" aria-expanded="false">Меню</button>
                 <div class="editor-menu-dropdown" role="menu">
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="toggleManagePosts()">Управление статьями</button>
-                    <button type="button" class="editor-menu-item" role="menuitem" onclick="openGlobalSettings()">Глобальные параметры</button>
+                    <button type="button" class="editor-menu-item" role="menuitem" onclick="openTemplateManager()">Менеджер шаблонов</button>
+                    <button type="button" class="editor-menu-item" role="menuitem" onclick="openGlobalSettings()">Параметры</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openBackupManager()">Менеджер бэкапов</button>
-                    <button type="button" class="editor-menu-item" role="menuitem" onclick="checkPostNumbering()">Проверка нумерации</button>
-                    <button type="button" class="editor-menu-item" role="menuitem" onclick="resetTutorial()">Сбросить обучение</button>
                     <button type="button" class="editor-menu-item" id="theme-toggle" role="menuitem">Изменить тему</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='ftp.php'">Опубликовать по FTP</button>
-                    <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='data/blog.html'">Перейти к Blog.html</button>
+                    <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='<?php echo getDataUrl('blog.html'); ?>'">Перейти к Blog.html</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openSystemUpdateModal()">Обновить NPBlog</button>
-                    <div class="editor-menu-version">ver 2.188</div>
+                    <?php if (!empty($passwordHash)): ?>
+                    <button type="button" class="editor-menu-item" role="menuitem" onclick="lockEditor()" style="color: #ef4444; font-weight: 600; border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 8px;">Заблокировать</button>
+                    <?php endif; ?>
+                    <div class="editor-menu-version">ver 2.205.13</div>
                 </div>
             </div>
         </div>
@@ -401,35 +342,232 @@ if (file_exists($settingsFile)) {
         <div id="postsList"></div>
     </div>
     
+    <!-- Менеджер шаблонов -->
+    <div id="templateManagerDialog" class="dialog" style="z-index: 1010;">
+        <div class="dialog-content" style="width: 850px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; padding: 0; border-radius: 12px; overflow: hidden;">
+            <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <h3 style="margin: 0; font-size: 1.3rem; font-weight: 600;">Менеджер шаблонов</h3>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="action-btn" onclick="showTemplateInstructions()" style="padding: 6px 12px; background: none; border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        ℹ️ Инструкция
+                    </button>
+                    <button type="button" class="action-btn" onclick="triggerTemplateUpload()" style="padding: 6px 12px; background: var(--primary-color, #4CAF50); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        📥 Загрузить шаблон
+                    </button>
+                    <input type="file" id="templateFileInput" accept=".html" style="display: none;" onchange="handleTemplateUpload(this)">
+                    <button type="button" class="close-btn" onclick="closeTemplateManager()" style="background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.6; line-height: 1; padding: 4px;">×</button>
+                </div>
+            </div>
+            <div class="dialog-body" style="padding: 24px; overflow-y: auto; flex: 1;">
+                <div id="templatesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
+                    <!-- Карточки шаблонов будут сгенерированы динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Инструкция по шаблонам -->
+    <div id="templateInstructionsDialog" class="dialog" style="z-index: 1050;">
+        <div class="dialog-content" style="width: 750px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; padding: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color);">
+            <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Базовые требования к шаблону</h3>
+                <button type="button" class="close-btn" onclick="closeTemplateInstructions()" style="background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.6; line-height: 1; padding: 4px;">×</button>
+            </div>
+            <div class="dialog-body" style="padding: 24px; overflow-y: auto; flex: 1; font-size: 14px; line-height: 1.6; color: var(--text-color);">
+                <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 16px; font-weight: 600; color: #4CAF50;">1. Обязательные плейсхолдеры</h4>
+                <p style="margin-bottom: 15px;">Ваш HTML-шаблон должен содержать следующие плейсхолдеры. Если хотя бы одного из них нет, шаблон не загрузится:</p>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                            <th style="padding: 8px;">Плейсхолдер</th>
+                            <th style="padding: 8px;">Описание</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{TITLE}}</td>
+                            <td style="padding: 8px;">Вставляет заголовок вашей статьи (встречется в &lt;title&gt; и &lt;h1&gt;)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{DATE}}</td>
+                            <td style="padding: 8px;">Дата публикации и последнего редактирования статьи</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{POST_ID}}</td>
+                            <td style="padding: 8px;">Идентификатор статьи (записывается в метатег post-id)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{CONTENT}}</td>
+                            <td style="padding: 8px;">Содержимое статьи (HTML-код, сформированный визуальным редактором)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{META_TAGS}}</td>
+                            <td style="padding: 8px;">SEO-метатеги (description, OpenGraph для репостов, Twitter Cards)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{CUSTOM_FONTS}}</td>
+                            <td style="padding: 8px;">Кастомные шрифты (правила @font-face, загруженные через панель)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{BODY_STYLE}}</td>
+                            <td style="padding: 8px;">Индивидуальный стиль страницы/фона для тега &lt;body&gt;</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{CONTENT_WRAPPER_START}}</td>
+                            <td style="padding: 8px;">Начало блоков подложки и фонового оверлея</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <td style="padding: 8px; font-family: monospace; font-weight: bold; color: #d63384;">{{CONTENT_WRAPPER_END}}</td>
+                            <td style="padding: 8px;">Конец блоков подложки и фонового оверлея</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 16px; font-weight: 600; color: #4CAF50;">2. CSS-требования (Стилизация элементов)</h4>
+                <p style="margin-bottom: 10px;">Для корректного отображения всех функций редактора в шаблон рекомендуется подключить стандартный файл стилей:</p>
+                <pre style="background: #272822; color: #f8f8f2; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-bottom: 15px; overflow-x: auto;">&lt;link rel="stylesheet" href="assets/blog-post.css?v=1.0.2"&gt;</pre>
+                <p style="margin-bottom: 10px;">Если вы пишете свои стили с нуля, убедитесь, что реализовали оформление для следующих классов:</p>
+                <ul style="padding-left: 20px; margin-bottom: 25px; display: flex; flex-direction: column; gap: 8px;">
+                    <li><strong>Таблицы</strong> (классы `.content table`, `th`, `td`): границы, отступы, выравнивание текста влево.</li>
+                    <li><strong>Спойлеры / Сворачиваемые списки</strong>: стилизация тегов `.spoiler-block`, `.spoiler-title` (курсор `pointer`, треугольный маркер) и `.spoiler-content` (анимация появления).</li>
+                    <li><strong>Блоки кода</strong> (`.code-block`): фоновый цвет, monospace шрифт, горизонтальный скролл (`overflow-x: auto`), оформление плашки языка через псевдоэлемент `.code-block::before` с `content: attr(data-language)`.</li>
+                    <li><strong>Кнопка скачивания файла</strong> (`.blog-file-button`, `.blog-file-icon`, `.blog-file-name`, `.blog-file-size`): гибкий флекс-контейнер со стилизованными текстами и иконкой.</li>
+                    <li><strong>ASCII-арт</strong> (`.blog-ascii-wrap`, `.blog-ascii-art`): сохранение пробелов и переносов строк (`white-space: pre`), прокрутка.</li>
+                    <li><strong>Маркеры / Текстовыделитель</strong> (`mark`): стили выделений (`[data-marker-style="rough"]`, wavy, zigzag, straight) и цвета маркера (желтый, зеленый, синий, розовый и др.).</li>
+                </ul>
+
+                <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 16px; font-weight: 600; color: #4CAF50;">3. JS-требования (Интерактив)</h4>
+                <p style="margin-bottom: 10px;">Для работы интерактивных элементов (смена темы оформления, просмотр картинок в полноэкранном модальном окне с зумом) подключите скрипт:</p>
+                <pre style="background: #272822; color: #f8f8f2; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-bottom: 15px; overflow-x: auto;">&lt;script src="assets/blog-post.js" defer&gt;&lt;/script&gt;</pre>
+                <p style="margin-bottom: 10px;">А также скопируйте из стандартного шаблона структуру полноэкранного модального окна для просмотра картинок:</p>
+                <pre style="background: #272822; color: #f8f8f2; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11px; margin-bottom: 15px; overflow-x: auto; max-height: 200px; overflow-y: auto;">&lt;div class="image-modal" id="imageModal"&gt;
+    &lt;button class="image-modal-close" onclick="closeImageModal()"&gt;×&lt;/button&gt;
+    &lt;div class="image-modal-container" id="imageContainer"&gt;
+        &lt;img class="image-modal-content" id="modalImage" src="" alt=""&gt;
+    &lt;/div&gt;
+    &lt;div class="image-modal-toolbar"&gt;
+        &lt;button class="image-modal-btn" onclick="zoomOut()"&gt;−&lt;/button&gt;
+        &lt;div class="image-modal-zoom-level" id="zoomLevel"&gt;100%&lt;/div&gt;
+        &lt;button class="image-modal-btn" onclick="zoomIn()"&gt;+&lt;/button&gt;
+        &lt;button class="image-modal-btn" onclick="resetZoom()"&gt;⟲&lt;/button&gt;
+        &lt;button class="image-modal-btn" onclick="downloadImage()"&gt;⬇&lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</pre>
+            </div>
+            <div class="dialog-buttons" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.02); margin:0;">
+                <button type="button" onclick="closeTemplateInstructions()" style="padding: 8px 20px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Детали шаблона -->
+    <div id="templateDetailsDialog" class="dialog" style="z-index: 1020;">
+        <div class="dialog-content" style="width: 1000px; max-width: 98vw; height: 85vh; max-height: 95vh; display: flex; flex-direction: column; padding: 0; border-radius: 12px; overflow: hidden;">
+            <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <h3 id="detailsTemplateTitle" style="margin: 0; font-size: 1.2rem; font-weight: 600;">Детали шаблона</h3>
+                <div style="display: flex; gap: 10px; align-items: center; position: relative;">
+                    <button type="button" class="action-btn cancel" onclick="closeTemplateDetails()" style="padding: 8px 16px; background: none; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-color);">Отмена</button>
+                    <button type="button" id="deleteTemplateBtn" class="action-btn delete" onclick="deleteCurrentTemplate()" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: none;">Удалить</button>
+                    
+                    <div style="position: relative; display: inline-block;">
+                        <button type="button" class="action-btn save" id="saveTemplateDropdownBtn" onclick="toggleSaveTemplateDropdown()" style="padding: 8px 16px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                            Сохранить ▾
+                        </button>
+                        <div id="saveTemplateDropdownMenu" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-color, #fff); border: 1px solid var(--border-color, #ccc); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 250px; z-index: 1030; flex-direction: column; overflow: hidden;">
+                            <button type="button" class="dropdown-item" onclick="saveAndApplyTemplateToAll()" style="padding: 10px 16px; text-align: left; background: none; border: none; cursor: pointer; font-size: 13px; border-bottom: 1px solid rgba(0,0,0,0.05); width: 100%;">
+                                Применить ко всем статьям<br><small style="opacity:0.6;">(и сделать шаблоном по умолчанию)</small>
+                            </button>
+                            <button type="button" class="dropdown-item" onclick="showApplyToSpecificPostList()" style="padding: 10px 16px; text-align: left; background: none; border: none; cursor: pointer; font-size: 13px; width: 100%;">
+                                Применить к определенной статье...
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dialog-body" style="flex: 1; display: flex; overflow: hidden; padding: 0;">
+                <!-- Левая колонка: Предпросмотр -->
+                <div style="flex: 1; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: #f9f9f9; position: relative;">
+                    <div style="padding: 8px 16px; font-size: 11px; font-weight: bold; opacity: 0.6; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.01); color: #000;">ПРЕДПРОСМОТР ШАБЛОНА</div>
+                    <div style="flex: 1; position: relative; padding: 0;">
+                        <iframe id="templatePreviewIframe" style="width: 100%; height: 100%; border: none;"></iframe>
+                    </div>
+                </div>
+                
+                <!-- Правая колонка: Детали, описание, код -->
+                <div style="width: 480px; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; gap: 15px;">
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: bold; opacity: 0.7; margin-bottom: 4px;">Название шаблона</label>
+                        <input type="text" id="detailsTemplateNameInput" class="editor-field" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-color); background: var(--bg-color);" placeholder="Например: Минималистичный">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: bold; opacity: 0.7; margin-bottom: 4px;">Описание шаблона</label>
+                        <textarea id="detailsTemplateDescriptionInput" class="editor-field" style="width: 100%; height: 70px; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); resize: none; color: var(--text-color); background: var(--bg-color);" placeholder="Краткое описание стилей и особенностей шаблона..."></textarea>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; min-height: 250px;">
+                        <label style="display: block; font-size: 12px; font-weight: bold; opacity: 0.7; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                            <span>HTML-код шаблона</span>
+                            <a href="#" onclick="showTemplatePlaceholdersInfo(event)" style="font-size: 11px; text-decoration: underline;">Доступные плейсхолдеры</a>
+                        </label>
+                        <textarea id="detailsTemplateCodeInput" class="editor-field" style="flex: 1; width: 100%; font-family: monospace; font-size: 12px; line-height: 1.4; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #272822; color: #f8f8f2; resize: none; tab-size: 4;" oninput="updateTemplateLivePreview()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Выбор статьи для применения шаблона -->
+    <div id="applyToPostModal" class="dialog" style="z-index: 1040;">
+        <div class="dialog-content" style="width: 450px; max-width: 95vw; max-height: 70vh; display: flex; flex-direction: column; padding: 0; border-radius: 12px; overflow: hidden;">
+            <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Применить к статье</h4>
+                <button type="button" class="close-btn" onclick="closeApplyToPostModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.6; line-height: 1; padding: 4px;">×</button>
+            </div>
+            <div style="padding: 12px 20px 0;">
+                <input type="text" id="templatePostSearchInput" class="posts-search-input" placeholder="🔍 Поиск статьи..." oninput="filterTemplatePosts()" style="width:100%;">
+            </div>
+            <div class="dialog-body" id="templatePostList" style="padding: 12px 20px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Список статей будет сгенерирован динамически -->
+            </div>
+        </div>
+    </div>
+
     <div id="imageUploadDialog" class="dialog">
-    <div class="dialog-content">
+    <div class="dialog-content" style="width: 500px; max-width: 95vw;">
         <h3>Добавить изображение</h3>
         
-
         <div class="image-source-toggle">
             <label>
-                <input type="radio" name="imageSource" value="file" checked> Загрузить файл
+                <input type="radio" name="imageSource" value="file" checked>
+                📁 Загрузить файл
             </label>
             <label>
-                <input type="radio" name="imageSource" value="url"> Вставить ссылку
+                <input type="radio" name="imageSource" value="url">
+                🔗 Вставить ссылку
             </label>
         </div>
 
-
         <div id="fileUploadContainer">
-            <input type="file" id="imageFile" accept="image/*" multiple>
+            <div id="imageDropzone" class="file-dropzone" onclick="if(event.target.tagName !== 'BUTTON' && !event.target.closest('#imageFilesPreview')) document.getElementById('imageFile').click()">
+                <input type="file" id="imageFile" accept="image/*" multiple style="display: none;" onchange="handleImageFileSelect(this)">
+                <div class="dropzone-icon">🖼️</div>
+                <div class="dropzone-text" id="imageDropzoneText">Выберите изображения или перетащите их сюда</div>
+                <div class="dropzone-subtext" style="font-size: 12px; opacity: 0.6; margin-top: 2px;">Поддерживаются JPG, PNG, GIF, WEBP</div>
+                <button type="button" class="dropzone-browse-btn" onclick="event.stopPropagation(); document.getElementById('imageFile').click()">Обзор...</button>
+                <div id="imageFilesPreview" style="display: none; width: 100%; margin-top: 15px; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; max-height: 150px; overflow-y: auto; padding: 5px;"></div>
+            </div>
         </div>
 
         <div id="imageGridPreviewContainer" style="display: none; margin: 15px 0;"></div>
 
-
         <div id="urlContainer" style="display: none;">
             <input type="text" id="imageUrl" placeholder="Введите URL изображения (несколько — с новой строки или через запятую)" class="image-url-input">
         </div>
+        
         <div class="form-group">
-    <label for="imageCaption">Подпись к изображению:</label>
-    <input type="text" id="imageCaption" class="form-control" placeholder="Введите подпись (необязательно)">
-</div>
+            <label for="imageCaption">Подпись к изображению:</label>
+            <input type="text" id="imageCaption" class="form-control" placeholder="Введите подпись (необязательно)">
+        </div>
 
         <div class="image-size-controls">
             <label>
@@ -438,6 +576,7 @@ if (file_exists($settingsFile)) {
                     <option value="small">Маленький</option>
                     <option value="medium" selected>Средний</option>
                     <option value="large">Большой</option>
+                    <option value="custom">Свой размер</option>
                 </select>
             </label>
             <label>
@@ -468,6 +607,10 @@ if (file_exists($settingsFile)) {
                 </div>
             </div>
         </div>
+        <div style="margin: 15px 0; display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="noBorderRadius" style="width: 16px; height: 16px; margin: 0; cursor: pointer;">
+            <label for="noBorderRadius" style="margin: 0; cursor: pointer; font-size: 14px; user-select: none;">Убрать закругление по краям</label>
+        </div>
         <div class="dialog-buttons">
             <button onclick="processImage()">Добавить</button>
             <button onclick="closeImageDialog()">Отмена</button>
@@ -477,7 +620,7 @@ if (file_exists($settingsFile)) {
 
     <div id="codeDialog" class="dialog code-dialog">
     <div class="dialog-content">
-        <h3>Вставить код</h3>
+        <h3 id="codeDialogTitle">Вставить код</h3>
         <select id="codeLanguage" class="language-select">
             <option value="javascript">JavaScript</option>
             <option value="php">PHP</option>
@@ -493,7 +636,7 @@ if (file_exists($settingsFile)) {
         </select>
         <textarea id="codeInput" class="code-input" placeholder="Вставьте ваш код сюда..."></textarea>
         <div class="dialog-buttons">
-            <button onclick="insertCodeBlock()">Вставить</button>
+            <button id="codeDialogSubmitBtn" onclick="insertCodeBlock()">Вставить</button>
             <button onclick="closeCodeDialog()">Отмена</button>
         </div>
     </div>
@@ -505,26 +648,24 @@ if (file_exists($settingsFile)) {
         <h3>Загрузить файл</h3>
         
         <div class="form-group">
-            <label style="display: block; margin-bottom: 10px; font-weight: 500;">Выберите файл:</label>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <label style="display: flex; gap: 10px; align-items: center; border: 2px dashed var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(128,128,128,0.1)'" onmouseout="this.style.background='transparent'">
-                    <input type="file" id="documentFile" style="display: none;" onchange="document.getElementById('documentFileName').textContent = this.files[0] ? this.files[0].name : 'Файл не выбран'">
-                    <div style="background: var(--text-color); color: var(--bg-color); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px;">Обзор...</div>
-                    <span id="documentFileName" style="color: var(--text-color); opacity: 0.7; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">Файл не выбран</span>
-                </label>
-                <button type="button" class="delete-confirm-btn delete" onclick="uploadDocument()" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 14px;">Загрузить файл</button>
+            <div id="fileDropzone" class="file-dropzone" onclick="if(event.target.tagName !== 'BUTTON') document.getElementById('documentFile').click()">
+                <input type="file" id="documentFile" style="display: none;" onchange="handleFileSelect(this)">
+                <div class="dropzone-icon">📤</div>
+                <div class="dropzone-text">Выберите файл или перетащите его сюда</div>
+                <div id="documentFileName" class="dropzone-filename">Файл не выбран</div>
+                <button type="button" class="dropzone-browse-btn" onclick="event.stopPropagation(); document.getElementById('documentFile').click()">Обзор...</button>
             </div>
         </div>
         
         <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin: 14px 0;">
                 <input type="checkbox" id="insertAsHyperlink" style="cursor: pointer;">
-                <span>Вставить как гиперссылку</span>
+                <span style="font-size: 13px; font-weight: 500; opacity: 0.9;">Вставить как гиперссылку</span>
             </label>
         </div>
         
         <div class="form-group">
-            <label>Загруженные файлы:</label>
+            <label style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: block;">Загруженные файлы:</label>
             <div class="file-upload-list" id="fileUploadList">
                 <div class="file-upload-empty">Загрузка списка файлов...</div>
             </div>
@@ -549,27 +690,27 @@ if (file_exists($settingsFile)) {
 
 
 <div id="mediaDialog" class="dialog">
-    <div class="dialog-content">
+    <div class="dialog-content" style="width: 550px; max-width: 95vw;">
         <h3>Добавить медиа</h3>
         
         <div class="form-group" style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 10px; font-weight: 500;">Тип медиа:</label>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="radio" name="mediaType" value="video-url" checked style="margin-right: 5px;">
-                    <span>Видео (YouTube/Vimeo)</span>
+            <label style="display: block; margin-bottom: 10px; font-weight: 500; font-size: 13px; opacity: 0.85;">Тип медиа:</label>
+            <div class="media-type-toggle">
+                <label>
+                    <input type="radio" name="mediaType" value="video-url" checked>
+                    📺 Видео (URL)
                 </label>
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="radio" name="mediaType" value="video-file" style="margin-right: 5px;">
-                    <span>Видео файл</span>
+                <label>
+                    <input type="radio" name="mediaType" value="video-file">
+                    📁 Видео файл
                 </label>
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="radio" name="mediaType" value="audio" style="margin-right: 5px;">
-                    <span>Аудио файл</span>
+                <label>
+                    <input type="radio" name="mediaType" value="audio">
+                    🎵 Аудио файл
                 </label>
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="radio" name="mediaType" value="audio-stream" style="margin-right: 5px;">
-                    <span>Аудио поток</span>
+                <label>
+                    <input type="radio" name="mediaType" value="audio-stream">
+                    📻 Аудио поток
                 </label>
             </div>
         </div>
@@ -584,20 +725,20 @@ if (file_exists($settingsFile)) {
         
         <div id="videoFileSection" style="display: none;">
             <div class="form-group">
-                <label style="display: block; margin-bottom: 10px; font-weight: 500;">Загрузить видео файл:</label>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <label style="display: flex; gap: 10px; align-items: center; border: 2px dashed var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(128,128,128,0.1)'" onmouseout="this.style.background='transparent'">
-                        <input type="file" id="videoFile" accept="video/*" style="display: none;" onchange="document.getElementById('videoFileName').textContent = this.files[0] ? this.files[0].name : 'Файл не выбран'">
-                        <div style="background: var(--text-color); color: var(--bg-color); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px;">Обзор...</div>
-                        <span id="videoFileName" style="color: var(--text-color); opacity: 0.7; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">Файл не выбран</span>
-                    </label>
-                    <button type="button" class="delete-confirm-btn delete" onclick="uploadVideoFile()" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 14px;">Загрузить видео</button>
+                <label style="display: block; margin-bottom: 10px; font-weight: 500; font-size: 13px; opacity: 0.85;">Загрузить видео файл:</label>
+                <div id="videoDropzone" class="file-dropzone" onclick="if(event.target.tagName !== 'BUTTON') document.getElementById('videoFile').click()">
+                    <input type="file" id="videoFile" accept="video/*" style="display: none;" onchange="handleMediaFileChange(this, 'video')">
+                    <div class="dropzone-icon">🎥</div>
+                    <div class="dropzone-text" id="videoDropzoneText">Выберите видео или перетащите его сюда</div>
+                    <div class="dropzone-subtext" style="font-size: 12px; opacity: 0.6; margin-top: 2px;">Поддерживаются MP4, WebM, OGG</div>
+                    <button type="button" class="dropzone-browse-btn" onclick="event.stopPropagation(); document.getElementById('videoFile').click()">Обзор...</button>
+                    <div id="videoFileName" class="dropzone-filename" style="display: none;"></div>
                 </div>
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
-                <label style="display: block; margin-bottom: 10px;">Загруженные видео файлы:</label>
-                <div id="videoFilesList" style="max-height: 200px; overflow-y: auto; border: 2px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 500; font-size: 13px; opacity: 0.85;">Загруженные видео файлы:</label>
+                <div id="videoFilesList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px;">
                     <div style="color: var(--text-color); opacity: 0.6;">Загрузка списка...</div>
                 </div>
             </div>
@@ -605,20 +746,20 @@ if (file_exists($settingsFile)) {
         
         <div id="audioMediaSection" style="display: none;">
             <div class="form-group">
-                <label style="display: block; margin-bottom: 10px; font-weight: 500;">Загрузить аудио файл:</label>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <label style="display: flex; gap: 10px; align-items: center; border: 2px dashed var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(128,128,128,0.1)'" onmouseout="this.style.background='transparent'">
-                        <input type="file" id="audioFile" accept="audio/*" style="display: none;" onchange="document.getElementById('audioFileName').textContent = this.files[0] ? this.files[0].name : 'Файл не выбран'">
-                        <div style="background: var(--text-color); color: var(--bg-color); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px;">Обзор...</div>
-                        <span id="audioFileName" style="color: var(--text-color); opacity: 0.7; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">Файл не выбран</span>
-                    </label>
-                    <button type="button" class="delete-confirm-btn delete" onclick="uploadAudioFile()" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 14px;">Загрузить аудио</button>
+                <label style="display: block; margin-bottom: 10px; font-weight: 500; font-size: 13px; opacity: 0.85;">Загрузить аудио файл:</label>
+                <div id="audioDropzone" class="file-dropzone" onclick="if(event.target.tagName !== 'BUTTON') document.getElementById('audioFile').click()">
+                    <input type="file" id="audioFile" accept="audio/*" style="display: none;" onchange="handleMediaFileChange(this, 'audio')">
+                    <div class="dropzone-icon">🎵</div>
+                    <div class="dropzone-text" id="audioDropzoneText">Выберите аудио или перетащите его сюда</div>
+                    <div class="dropzone-subtext" style="font-size: 12px; opacity: 0.6; margin-top: 2px;">Поддерживаются MP3, WAV, OGG</div>
+                    <button type="button" class="dropzone-browse-btn" onclick="event.stopPropagation(); document.getElementById('audioFile').click()">Обзор...</button>
+                    <div id="audioFileName" class="dropzone-filename" style="display: none;"></div>
                 </div>
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
-                <label style="display: block; margin-bottom: 10px;">Загруженные аудио файлы:</label>
-                <div id="audioFilesList" style="max-height: 200px; overflow-y: auto; border: 2px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 500; font-size: 13px; opacity: 0.85;">Загруженные аудио файлы:</label>
+                <div id="audioFilesList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px;">
                     <div style="color: var(--text-color); opacity: 0.6;">Загрузка списка...</div>
                 </div>
             </div>
@@ -741,7 +882,50 @@ if (file_exists($settingsFile)) {
     </div>
 </div>
 
-<script src="editor-main.js?v=1779014530"></script>
+<!-- Модальное окно управления наборами смайлов -->
+<div id="smileSetsDialog" class="dialog">
+    <div class="dialog-content" style="width: 500px; max-width: 95vw;">
+        <h3 style="margin-top: 0; color: var(--text-color);">Управление наборами смайлов</h3>
+        
+        <div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+            <div style="font-weight: bold; margin-bottom: 8px; color: var(--text-color);">Загрузить новый набор:</div>
+            <div style="display: flex; gap: 15px; margin-bottom: 12px; color: var(--text-color);">
+                <label style="font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <input type="radio" name="smileUploadType" value="folder" checked onclick="toggleSmileUploadMode('folder')">
+                    Загрузить папку
+                </label>
+                <label style="font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <input type="radio" name="smileUploadType" value="files" onclick="toggleSmileUploadMode('files')">
+                    Загрузить файлы (.gif)
+                </label>
+            </div>
+            
+            <div id="smileUploadFolderContainer">
+                <input type="file" id="smileFolderInput" webkitdirectory directory multiple style="width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                <small style="display: block; opacity: 0.6; margin-top: 4px; color: var(--text-color);">Выберите папку со смайлами на компьютере. Имя папки станет названием набора.</small>
+            </div>
+            
+            <div id="smileUploadFilesContainer" style="display: none;">
+                <input type="file" id="smileFilesInput" accept="image/gif" multiple style="width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; margin-bottom: 8px;">
+                <input type="text" id="smileSetNameInput" placeholder="Название набора" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                <small style="display: block; opacity: 0.6; margin-top: 4px; color: var(--text-color);">Выберите GIF-файлы и введите название для набора.</small>
+            </div>
+            
+            <button type="button" onclick="handleSmileSetUpload()" style="margin-top: 12px; padding: 10px 20px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;">Загрузить</button>
+        </div>
+        
+        <div style="font-weight: bold; margin-bottom: 8px; color: var(--text-color);">Доступные наборы:</div>
+        <div id="smileSetsList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: var(--bg-color);">
+            <div style="text-align: center; opacity: 0.6; padding: 10px; color: var(--text-color);">Загрузка наборов...</div>
+        </div>
+        
+        <div class="dialog-buttons" style="margin-top: 20px;">
+            <button onclick="closeSmileSetsDialog()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script src="editor-main.js?v=1779014531"></script>
 
 <script src="editor-img.js?v=1779014519"></script>
 
@@ -755,7 +939,7 @@ if (file_exists($settingsFile)) {
         <div id="globalBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 2px solid #ffc107; border-radius: 8px; background: rgba(255, 193, 7, 0.05);">
             <p style="color: var(--text-color); font-weight: 500; margin-bottom: 10px;">🌍 Применен глобальный фон:</p>
             <div style="display: flex; align-items: center; gap: 15px;">
-                <img id="globalBackgroundPreview" src="" alt="Глобальный фон" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid var(--border-color);">
+                <img id="globalBackgroundPreview" src="" alt="Глобальный фон" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);">
                 <div>
                     <p id="globalBackgroundName" style="color: var(--text-color); font-size: 14px; word-break: break-all;"></p>
                     <p id="globalBackgroundModeText" style="color: var(--text-color); font-size: 12px; opacity: 0.7; margin-top: 5px;"></p>
@@ -765,10 +949,10 @@ if (file_exists($settingsFile)) {
         </div>
         
         <!-- Текущий фон статьи -->
-        <div id="currentBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 2px solid var(--border-color); border-radius: 8px;">
+        <div id="currentBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 8px;">
             <p style="color: var(--text-color); font-weight: 500; margin-bottom: 10px;">Текущий фон статьи:</p>
             <div style="display: flex; align-items: center; gap: 15px;">
-                <img id="currentBackgroundPreview" src="" alt="Фон" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid var(--border-color);">
+                <img id="currentBackgroundPreview" src="" alt="Фон" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);">
                 <div>
                     <p id="currentBackgroundName" style="color: var(--text-color); font-size: 14px; word-break: break-all;"></p>
                     <p id="currentBackgroundMode" style="color: var(--text-color); font-size: 12px; opacity: 0.7; margin-top: 5px;"></p>
@@ -778,17 +962,17 @@ if (file_exists($settingsFile)) {
         
         <div style="margin-bottom: 20px;">
             <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Фоновое изображение:</label>
-            <input type="file" id="backgroundInput" accept="image/*" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px;">
+            <input type="file" id="backgroundInput" accept="image/*" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px;">
             
             <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Режим отображения:</label>
-            <select id="backgroundMode" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 15px;">
+            <select id="backgroundMode" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 15px;">
                 <option value="cover">Растянуть (cover)</option>
                 <option value="contain">По размеру (contain)</option>
                 <option value="repeat">Замостить (repeat)</option>
             </select>
             
             <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Область фона:</label>
-            <select id="backgroundScope" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 15px;">
+            <select id="backgroundScope" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 15px;">
                 <option value="content">Только статья (920px)</option>
                 <option value="fullpage">Вся страница</option>
             </select>
@@ -806,7 +990,7 @@ if (file_exists($settingsFile)) {
             
             <div id="overlaySettings" style="display: none; padding-left: 30px;">
                 <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Цвет подложки:</label>
-                <input type="color" id="overlayColor" value="#ffffff" style="width: 100%; height: 40px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; margin-bottom: 15px;">
+                <input type="color" id="overlayColor" value="#ffffff" style="width: 100%; height: 40px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; margin-bottom: 15px;">
                 
                 <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Прозрачность: <span id="overlayOpacityValue">90%</span></label>
                 <input type="range" id="overlayOpacity" min="0" max="100" value="90" oninput="updateOpacityValue()" style="width: 100%; margin-bottom: 15px;">
@@ -845,6 +1029,12 @@ if (file_exists($settingsFile)) {
             <button type="button" onclick="showGlobalSection('rss')" class="global-nav-btn" data-section="rss" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
                 RSS Виджет
             </button>
+            <button type="button" onclick="showGlobalSection('security')" class="global-nav-btn" data-section="security" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
+                Безопасность
+            </button>
+            <button type="button" onclick="showGlobalSection('seo')" class="global-nav-btn" data-section="seo" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
+                SEO и соцсети
+            </button>
             <!-- Здесь можно добавить другие пункты навигации -->
         </div>
         
@@ -860,26 +1050,26 @@ if (file_exists($settingsFile)) {
                 <p style="color: var(--text-color); margin-bottom: 20px; opacity: 0.8;">Загрузите фоновое изображение, которое будет применяться ко всем статьям по умолчанию.</p>
                 
                 <!-- Текущий глобальный фон -->
-                <div id="currentGlobalBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 2px solid var(--border-color); border-radius: 8px;">
+                <div id="currentGlobalBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 8px;">
                     <p style="color: var(--text-color); margin-bottom: 10px; font-weight: 500;">Текущий глобальный фон:</p>
-                    <img id="currentGlobalBackgroundPreview" src="" style="max-width: 200px; max-height: 150px; border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 10px;">
+                    <img id="currentGlobalBackgroundPreview" src="" style="max-width: 200px; max-height: 150px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 10px;">
                     <p style="color: var(--text-color); font-size: 14px; margin-bottom: 5px;" id="currentGlobalBackgroundName"></p>
                     <p style="color: var(--text-color); font-size: 14px;" id="currentGlobalBackgroundMode"></p>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Фоновое изображение:</label>
-                    <input type="file" id="globalBackgroundInput" accept="image/*" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px;">
+                    <input type="file" id="globalBackgroundInput" accept="image/*" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px;">
                     
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Режим отображения:</label>
-                    <select id="globalBackgroundMode" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 15px;">
+                    <select id="globalBackgroundMode" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 15px;">
                         <option value="cover">Растянуть (cover)</option>
                         <option value="contain">По размеру (contain)</option>
                         <option value="repeat">Замостить (repeat)</option>
                     </select>
                     
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Область фона:</label>
-                    <select id="globalBackgroundScope" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px;">
+                    <select id="globalBackgroundScope" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px;">
                         <option value="content">Только статья (920px)</option>
                         <option value="fullpage">Вся страница</option>
                     </select>
@@ -888,6 +1078,13 @@ if (file_exists($settingsFile)) {
                         <button type="button" onclick="uploadGlobalBackground()" class="global-action-btn global-action-btn-primary">Загрузить фон</button>
                         <button type="button" onclick="removeGlobalBackground()" class="global-action-btn global-action-btn-secondary">Удалить фон</button>
                     </div>
+                </div>
+                
+                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="hidePoweredByCheckbox" onchange="savePoweredBySetting(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 14px;">Скрыть надпись "Powered by NPBlog" в статьях</span>
+                    </label>
                 </div>
                 
                 <div style="padding: 15px; background: rgba(255, 193, 7, 0.1); border: 2px solid rgba(255, 193, 7, 0.5); border-radius: 8px; margin-top: 20px;">
@@ -903,7 +1100,7 @@ if (file_exists($settingsFile)) {
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border-color);">
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Заголовок страницы:</label>
-                    <input type="text" id="blogPageTitle" placeholder="Блог" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px; font-size: 14px;">
+                    <input type="text" id="blogPageTitle" placeholder="Блог" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px; font-size: 14px;">
                     
                     <button type="button" onclick="saveBlogViewSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки</button>
                 </div>
@@ -912,18 +1109,18 @@ if (file_exists($settingsFile)) {
                     <h4 style="margin: 0 0 15px 0; color: var(--text-color); font-size: 16px;">Фон страницы списка статей (blog.html)</h4>
                     
                     <!-- Текущий фон blog.html -->
-                    <div id="currentBlogBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 2px solid var(--border-color); border-radius: 8px;">
+                    <div id="currentBlogBackgroundInfo" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 8px;">
                         <p style="color: var(--text-color); margin-bottom: 10px; font-weight: 500;">Текущий фон списка статей:</p>
-                        <img id="currentBlogBackgroundPreview" src="" style="max-width: 200px; max-height: 150px; border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 10px;">
+                        <img id="currentBlogBackgroundPreview" src="" style="max-width: 200px; max-height: 150px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 10px;">
                         <p style="color: var(--text-color); font-size: 14px; margin-bottom: 5px;" id="currentBlogBackgroundName"></p>
                         <p style="color: var(--text-color); font-size: 14px;" id="currentBlogBackgroundMode"></p>
                     </div>
 
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Фоновое изображение:</label>
-                    <input type="file" id="blogBackgroundInput" accept="image/*" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px;">
+                    <input type="file" id="blogBackgroundInput" accept="image/*" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px;">
                     
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Режим отображения:</label>
-                    <select id="blogBackgroundMode" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px;">
+                    <select id="blogBackgroundMode" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px;">
                         <option value="cover">Растянуть (cover)</option>
                         <option value="contain">По размеру (contain)</option>
                         <option value="repeat">Замостить (repeat)</option>
@@ -947,7 +1144,7 @@ if (file_exists($settingsFile)) {
                     </label>
                     
                     <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Интервал автосохранения (секунды):</label>
-                    <input type="number" id="autosaveInterval" min="10" max="600" value="60" style="display: block; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px; font-size: 14px;">
+                    <input type="number" id="autosaveInterval" min="10" max="600" value="60" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 20px; font-size: 14px;">
                     
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button type="button" onclick="saveAutosaveSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки</button>
@@ -978,6 +1175,21 @@ if (file_exists($settingsFile)) {
                         <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Включить абсолютно черный фон (для AMOLED дисплеев)</span>
                     </label>
                     
+                    <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
+                        <input type="checkbox" id="smoothTyping" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Включить плавную печать текста (мягкий курсор)</span>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
+                        <input type="checkbox" id="headerBottomPosition" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Переместить панель управления в низ экрана</span>
+                    </label>
+
+                    <div style="margin-bottom: 20px; text-align: left;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500; font-size: 16px;">Ширина поля контента (в пикселях):</label>
+                        <input type="number" id="settingsContentWidth" min="400" max="2500" placeholder="920" style="box-sizing: border-box; display: block; width: 100%; max-width: 300px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                    </div>
+                    
                     <button type="button" onclick="saveAppearanceSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки</button>
                 </div>
                 
@@ -992,13 +1204,27 @@ if (file_exists($settingsFile)) {
             <div id="globalSection-experimental" class="global-section" style="display: none;">
                 <p style="color: var(--text-color); margin-bottom: 20px; opacity: 0.8;">Включите или отключите экспериментальные функции редактора.</p>
                 
-                <div style="margin-bottom: 20px;">
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border-color);">
                     <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
                         <input type="checkbox" id="enableUndoRedo" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
                         <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Включить Undo/Redo (отмена/возврат изменений)</span>
                     </label>
                     
+                    <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
+                        <input type="checkbox" id="enableMarkdown" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Использовать Markdown</span>
+                    </label>
+                    
                     <button type="button" onclick="saveExperimentalSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки</button>
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <h4 style="margin: 0 0 15px 0; color: var(--text-color); font-size: 16px; font-weight: 600;">Обслуживание и обучение</h4>
+                    <p style="color: var(--text-color); margin-bottom: 15px; opacity: 0.8; font-size: 14px;">Запустите проверку целостности или сбросьте интерактивное руководство.</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" onclick="checkPostNumbering()" class="global-action-btn global-action-btn-primary">Проверка нумерации</button>
+                        <button type="button" onclick="resetTutorial()" class="global-action-btn global-action-btn-secondary">Сбросить обучение</button>
+                    </div>
                 </div>
                 
                 <div style="padding: 15px; background: rgba(255, 152, 0, 0.1); border: 2px solid rgba(255, 152, 0, 0.3); border-radius: 8px; margin-top: 20px;">
@@ -1030,7 +1256,7 @@ if (file_exists($settingsFile)) {
                             <label style="color: var(--text-color); font-weight: 600; font-size: 14px;">Шаг 1: Вставьте этот HTML-код в место вывода виджета</label>
                             <button type="button" onclick="copyToClipboard('rssHtmlCode', this)" style="padding: 6px 12px; font-size: 12px; background: var(--primary-color, #4CAF50); color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-weight: 500;">Копировать HTML</button>
                         </div>
-                        <textarea id="rssHtmlCode" readonly style="width: 100%; height: 60px; font-family: monospace; font-size: 13px; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); resize: none; box-sizing: border-box;"></textarea>
+                        <textarea id="rssHtmlCode" readonly style="width: 100%; height: 60px; font-family: monospace; font-size: 13px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); resize: none; box-sizing: border-box;"></textarea>
                     </div>
 
                     <!-- Шаг 2: JS код -->
@@ -1039,7 +1265,7 @@ if (file_exists($settingsFile)) {
                             <label style="color: var(--text-color); font-weight: 600; font-size: 14px;">Шаг 2: Вставьте этот JS-код в конец страницы (перед &lt;/body&gt;)</label>
                             <button type="button" onclick="copyToClipboard('rssJsCode', this)" style="padding: 6px 12px; font-size: 12px; background: var(--primary-color, #4CAF50); color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-weight: 500;">Копировать JS</button>
                         </div>
-                        <textarea id="rssJsCode" readonly style="width: 100%; height: 320px; font-family: monospace; font-size: 12px; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); resize: none; box-sizing: border-box; line-height: 1.5;"></textarea>
+                        <textarea id="rssJsCode" readonly style="width: 100%; height: 320px; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); resize: none; box-sizing: border-box; line-height: 1.5;"></textarea>
                     </div>
                 </div>
 
@@ -1047,6 +1273,137 @@ if (file_exists($settingsFile)) {
                     <p style="color: var(--text-color); font-size: 13px; margin: 0; line-height: 1.5;">
                         💡 <strong>Совет по стилизации:</strong> Вы можете полностью изменить внешний вид ссылки виджета на вашем сайте с помощью CSS стилей для класса <code>.npblog-rss-link</code>, прописав его в файле стилей вашего сайта.
                     </p>
+                </div>
+            </div>
+
+            <!-- Секция: Безопасность и доступ -->
+            <div id="globalSection-security" class="global-section" style="display: none;">
+                <p style="color: var(--text-color); margin-bottom: 20px; opacity: 0.8;">Настройте параметры безопасности и путей доступа редактора.</p>
+                
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                    <label style="display: block; margin-bottom: 10px; color: var(--text-color); font-weight: 500;">Путь к папке data:</label>
+                    <input type="text" id="settingsDataPath" placeholder="/var/www/html/data" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-bottom: 10px; font-size: 14px; box-sizing: border-box;">
+                    <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-bottom: 0px; opacity: 0.8;">
+                        Укажите абсолютный путь на сервере к директории <code>data</code> (по умолчанию: <code>/var/www/html/data</code>).
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                    <!-- Вариант 1: Пароль не установлен -->
+                    <div id="securityPasswordNotSet" style="display: block;">
+                        <label style="display: flex; align-items: center; margin-bottom: 15px; cursor: pointer;">
+                            <input type="checkbox" id="settingsPasswordEnabled" onchange="togglePasswordFieldsVisibility()" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                            <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Включить защиту паролем</span>
+                        </label>
+                        
+                        <div id="securityPasswordFields" style="display: none; margin-bottom: 20px; padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-size: 14px;">Новый пароль:</label>
+                                <input type="password" id="settingsNewPassword" placeholder="Введите новый пароль" style="box-sizing: border-box; display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-size: 14px;">Подтверждение пароля:</label>
+                                <input type="password" id="settingsConfirmPassword" placeholder="Повторите новый пароль" style="box-sizing: border-box; display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Вариант 2: Пароль установлен -->
+                    <div id="securityPasswordSet" style="display: none;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                            <span style="color: var(--text-color); font-weight: 500; font-size: 16px; display: flex; align-items: center; gap: 6px;">
+                                <span>🔒</span> Пароль установлен
+                            </span>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="button" onclick="showChangePasswordForm()" class="global-action-btn" style="padding: 6px 12px; font-size: 13px; cursor: pointer; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">Изменить пароль</button>
+                                <button type="button" onclick="showDisablePasswordForm()" class="global-action-btn" style="padding: 6px 12px; font-size: 13px; cursor: pointer; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; opacity: 0.8;">Отключить защиту</button>
+                            </div>
+                        </div>
+
+                        <!-- Форма изменения пароля -->
+                        <div id="changePasswordFormContainer" style="display: none; margin-bottom: 20px; padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-size: 14px;">Старый пароль:</label>
+                                <input type="password" id="changeSettingsOldPassword" placeholder="Введите старый пароль" style="box-sizing: border-box; display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-size: 14px;">Новый пароль:</label>
+                                <input type="password" id="changeSettingsNewPassword" placeholder="Введите новый пароль" style="box-sizing: border-box; display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-size: 14px;">Подтверждение нового пароля:</label>
+                                <input type="password" id="changeSettingsConfirmPassword" placeholder="Повторите новый пароль" style="box-sizing: border-box; display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            </div>
+                        </div>
+
+                        <!-- Форма отключения пароля -->
+                        <div id="disablePasswordFormContainer" style="display: none; margin-bottom: 20px; padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box;">
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-size: 14px;">Введите текущий пароль для отключения защиты:</label>
+                                <input type="password" id="disableSettingsPassword" placeholder="Введите ваш текущий пароль" style="box-sizing: border-box; display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <button type="button" onclick="saveSecuritySettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки безопасности</button>
+                </div>
+                
+                <div style="padding: 15px; background: rgba(239, 68, 68, 0.1); border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-top: 20px;">
+                    <p style="color: var(--text-color); font-size: 13px; margin: 0; line-height: 1.5;">
+                        ⚠️ <strong>Рекомендация по безопасности:</strong><br>
+                        Для предотвращения прямого скачивания конфигурации из браузера, заблокируйте доступ к JSON-файлам в настройках вашего веб-сервера:
+                        <br><br>
+                        <strong>Nginx:</strong>
+                        <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; overflow-x: auto; margin: 5px 0;">location ~* (editor_settings\.json|ftp\.json|posts-meta\.json)$ {
+    deny all;
+}</pre>
+                        <strong>Apache (.htaccess):</strong>
+                        <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; overflow-x: auto; margin: 5px 0;">&lt;FilesMatch "\.(json)$"&gt;
+    Require all denied
+&lt;/FilesMatch&gt;</pre>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Секция: SEO и соцсети -->
+            <div id="globalSection-seo" class="global-section" style="display: none;">
+                <p style="color: var(--text-color); margin-bottom: 20px; opacity: 0.8;">Настройте метатеги (Open Graph / Twitter Cards) для корректного отображения превью статей в Telegram, Discord и соцсетях.</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Базовый URL сайта (Base URL):</label>
+                    <input type="text" id="seoBaseUrl" placeholder="https://myblog.ru" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; box-sizing: border-box;">
+                    <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 5px; opacity: 0.8;">
+                        Необходим для генерации абсолютных URL-адресов статей и картинок (например: <code>https://myblog.ru</code>). Без этого соцсети не смогут корректно загрузить картинки.
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Изображение по умолчанию (URL или путь):</label>
+                    <input type="text" id="seoDefaultImage" placeholder="https://myblog.ru/data/default-preview.png" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; box-sizing: border-box;">
+                    <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 5px; opacity: 0.8;">
+                        Ссылка на изображение, которое будет использоваться для превью, если в статье нет картинок. Может быть абсолютной ссылкой или относительным путем (например: <code>data/default-preview.png</code>).
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Описание по умолчанию (Default Description):</label>
+                    <textarea id="seoDefaultDescription" placeholder="Интересные статьи о программировании и технологиях." style="display: block; width: 100%; height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; box-sizing: border-box; resize: vertical;"></textarea>
+                    <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 5px; opacity: 0.8;">
+                        Описание, которое будет использоваться, если статья слишком короткая или не содержит текста.
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 20px; padding: 12px; background: rgba(33, 150, 243, 0.1); border: 1px solid rgba(33, 150, 243, 0.3); border-radius: 8px;">
+                    <p style="color: var(--text-color); font-size: 13px; margin: 0; line-height: 1.5;">
+                        💡 <strong>Обратите внимание:</strong> При сохранении или обновлении статьи метатеги генерируются автоматически на основе её содержимого. Вы также можете перегенерировать метатеги для всех статей с помощью кнопки ниже.
+                    </p>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button type="button" onclick="saveSeoSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки SEO</button>
+                    <button type="button" onclick="regenerateAllPostsMeta(this)" class="global-action-btn global-action-btn-secondary">Перегенерировать метатеги статей</button>
                 </div>
             </div>
         </div>
@@ -1264,7 +1621,7 @@ function openAdditionalSettings(postId, postTitle) {
             document.getElementById('backgroundScope').value = settings.backgroundScope || 'content';
             
             // Проверяем глобальный фон
-            return fetch('data/global-settings.json?t=' + Date.now())
+            return fetch('serve_data.php?file=global-settings.json&t=' + Date.now())
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('No global settings');
@@ -1288,7 +1645,7 @@ function openAdditionalSettings(postId, postTitle) {
                 const bgName = document.getElementById('currentBackgroundName');
                 const bgMode = document.getElementById('currentBackgroundMode');
                 
-                bgPreview.src = '/data/backgrounds/' + settings.background;
+                bgPreview.src = 'serve_data.php?file=backgrounds/' + settings.background;
                 bgName.textContent = settings.background;
                 
                 const modeText = {
@@ -1310,7 +1667,7 @@ function openAdditionalSettings(postId, postTitle) {
                 const bgName = document.getElementById('globalBackgroundName');
                 const bgMode = document.getElementById('globalBackgroundModeText');
                 
-                bgPreview.src = '/data/backgrounds/' + globalSettings.background;
+                bgPreview.src = 'serve_data.php?file=backgrounds/' + globalSettings.background;
                 bgName.textContent = globalSettings.background;
                 
                 const modeText = {
@@ -1413,7 +1770,7 @@ function uploadBackground() {
             const bgMode = document.getElementById('currentBackgroundMode');
             const currentBgInfo = document.getElementById('currentBackgroundInfo');
             
-            bgPreview.src = '/data/backgrounds/' + data.filename;
+            bgPreview.src = 'serve_data.php?file=backgrounds/' + data.filename;
             bgName.textContent = data.filename;
             
             const modeText = {
@@ -1463,7 +1820,7 @@ function removeBackground() {
             // Небольшая задержка перед повторным открытием
             setTimeout(() => {
                 // Находим название статьи
-                fetch('data/blog/posts-meta.json')
+                fetch('serve_data.php?file=blog/posts-meta.json')
                     .then(response => response.json())
                     .then(meta => {
                         const post = meta.find(p => p.id === currentAdditionalPostId);
@@ -1572,7 +1929,9 @@ function showGlobalSection(sectionName) {
         'autosave': 'Автосохранение',
         'appearance': 'Внешний вид',
         'experimental': 'Экспериментальные функции',
-        'rss': 'Интеграция RSS (Виджет)'
+        'rss': 'Интеграция RSS (Виджет)',
+        'security': 'Безопасность и доступ',
+        'seo': 'SEO и соцсети'
     };
     document.getElementById('globalSectionTitle').textContent = titles[sectionName] || '';
     
@@ -1587,6 +1946,10 @@ function showGlobalSection(sectionName) {
         loadExperimentalSettings();
     } else if (sectionName === 'rss') {
         loadRssSection();
+    } else if (sectionName === 'security') {
+        loadSecuritySettings();
+    } else if (sectionName === 'seo') {
+        loadSeoSettings();
     }
 }
 
@@ -1634,7 +1997,7 @@ function loadRssSection() {
     var previewContainer = document.getElementById('rssLivePreviewContainer');
     previewContainer.innerHTML = '<div style="font-size: 14px; color: var(--text-color); opacity: 0.6; font-style: italic;">Загрузка данных...</div>';
     
-    fetch('data/blog/posts-meta.json?t=' + Date.now())
+    fetch('serve_data.php?file=blog/posts-meta.json&t=' + Date.now())
         .then(response => response.json())
         .then(posts => {
             if (!posts || posts.length === 0) {
@@ -1648,7 +2011,7 @@ function loadRssSection() {
             previewContainer.innerHTML = '';
             
             var link = document.createElement('a');
-            link.href = 'data/blog/' + latestPost.filename;
+            link.href = DATA_URL_PREFIX + 'blog/' + latestPost.filename;
             link.target = '_blank';
             link.className = 'npblog-rss-link';
             link.textContent = 'Вышла новая статья: ' + latestPost.title;
@@ -1700,7 +2063,7 @@ function copyToClipboard(elementId, btnElement) {
 }
 
 function loadGlobalBackground() {
-    fetch('data/global-settings.json?t=' + Date.now())
+    fetch('serve_data.php?file=global-settings.json&t=' + Date.now())
         .then(response => {
             if (!response.ok) {
                 // Файл не существует
@@ -1709,6 +2072,12 @@ function loadGlobalBackground() {
             return response.json();
         })
         .then(settings => {
+            if (settings) {
+                document.getElementById('hidePoweredByCheckbox').checked = !!settings.hidePoweredBy;
+            } else {
+                document.getElementById('hidePoweredByCheckbox').checked = false;
+            }
+
             if (settings && settings.background) {
                 document.getElementById('globalBackgroundMode').value = settings.backgroundMode || 'cover';
                 document.getElementById('globalBackgroundScope').value = settings.backgroundScope || 'content';
@@ -1718,7 +2087,7 @@ function loadGlobalBackground() {
                 const bgMode = document.getElementById('currentGlobalBackgroundMode');
                 const currentBgInfo = document.getElementById('currentGlobalBackgroundInfo');
                 
-                bgPreview.src = '/data/backgrounds/' + settings.background;
+                bgPreview.src = 'serve_data.php?file=backgrounds/' + settings.background;
                 bgName.textContent = settings.background;
                 
                 const modeText = {
@@ -1742,6 +2111,7 @@ function loadGlobalBackground() {
         })
         .catch(() => {
             // Файл не существует или произошла ошибка
+            document.getElementById('hidePoweredByCheckbox').checked = false;
             document.getElementById('currentGlobalBackgroundInfo').style.display = 'none';
             // Устанавливаем значения по умолчанию
             document.getElementById('globalBackgroundMode').value = 'cover';
@@ -1805,6 +2175,112 @@ function removeGlobalBackground() {
         console.error('Ошибка:', error);
         showAlert('Ошибка удаления фона');
     });
+    });
+}
+
+function savePoweredBySetting(checked) {
+    fetch('save_global_settings.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ hidePoweredBy: checked })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Настройка сохранена');
+        } else {
+            showAlert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        showAlert('Ошибка сохранения настройки');
+    });
+}
+
+function loadSeoSettings() {
+    fetch('serve_data.php?file=global-settings.json&t=' + Date.now())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('File not found');
+            }
+            return response.json();
+        })
+        .then(settings => {
+            document.getElementById('seoBaseUrl').value = settings.baseUrl || '';
+            document.getElementById('seoDefaultImage').value = settings.defaultOgImage || '';
+            document.getElementById('seoDefaultDescription').value = settings.defaultOgDescription || '';
+        })
+        .catch(() => {
+            document.getElementById('seoBaseUrl').value = '';
+            document.getElementById('seoDefaultImage').value = '';
+            document.getElementById('seoDefaultDescription').value = '';
+        });
+}
+
+function saveSeoSettings() {
+    const baseUrl = document.getElementById('seoBaseUrl').value.trim();
+    const defaultOgImage = document.getElementById('seoDefaultImage').value.trim();
+    const defaultOgDescription = document.getElementById('seoDefaultDescription').value.trim();
+    
+    fetch('save_global_settings.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            baseUrl: baseUrl,
+            defaultOgImage: defaultOgImage,
+            defaultOgDescription: defaultOgDescription
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Настройки SEO успешно сохранены');
+        } else {
+            showAlert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        showAlert('Ошибка сохранения настроек SEO');
+    });
+}
+
+function regenerateAllPostsMeta(btn) {
+    showConfirm('Перегенерировать метатеги во всех опубликованных статьях? Это обновит Open Graph и Twitter Cards превью на основе текущих глобальных настроек SEO.').then(result => {
+        if (!result) return;
+        
+        const originalText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.textContent = 'Обновление...';
+            btn.disabled = true;
+        }
+        
+        fetch('regenerate_seo.php', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Метатеги успешно обновлены! Обработано статей: ' + data.processed + ', обновлено: ' + data.updated);
+            } else {
+                showAlert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            showAlert('Произошла ошибка при обновлении метатегов');
+        })
+        .finally(() => {
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        });
     });
 }
 
@@ -1892,7 +2368,7 @@ function closeNotificationModal(result) {
 
 // Функции для настроек вида blog.html
 function loadBlogViewSettings() {
-    fetch('data/blog-view-settings.json?t=' + Date.now())
+    fetch('serve_data.php?file=blog-view-settings.json&t=' + Date.now())
         .then(response => {
             if (!response.ok) {
                 throw new Error('Settings not found');
@@ -1905,7 +2381,7 @@ function loadBlogViewSettings() {
             // Загружаем инфо о текущем фоне
             const bgInfo = document.getElementById('currentBlogBackgroundInfo');
             if (settings.background) {
-                document.getElementById('currentBlogBackgroundPreview').src = 'data/backgrounds/' + settings.background + '?t=' + Date.now();
+                document.getElementById('currentBlogBackgroundPreview').src = 'serve_data.php?file=backgrounds/' + settings.background + '&t=' + Date.now();
                 document.getElementById('currentBlogBackgroundName').textContent = 'Имя файла: ' + settings.background;
                 
                 let modeText = 'Режим: ';
@@ -2091,9 +2567,18 @@ function updateAutosaveBadge() {
 
 function performAutosave() {
     const title = document.getElementById('title').value.trim();
-    const content = editorMode === 'visual' 
+    let content = editorMode === 'visual' 
         ? document.getElementById('contentVisual').innerHTML 
         : document.getElementById('content').value;
+    
+    if (window.enableMarkdown) {
+        if (editorMode === 'visual') {
+            document.getElementById('content').value = convertHtmlToMarkdown(document.getElementById('contentVisual').innerHTML);
+        }
+        const rawMarkdown = document.getElementById('content').value;
+        const base64Markdown = btoa(unescape(encodeURIComponent(rawMarkdown)));
+        content = parseMarkdownToHtml(rawMarkdown) + '\n<script type="text/markdown" id="markdown-source" data-base64="' + base64Markdown + '"></' + 'script>';
+    }
     
     if (!title && !content) {
         return; // Нечего сохранять
@@ -2251,10 +2736,59 @@ function loadAutosaveById(id) {
         if (data.success && data.autosave) {
             document.getElementById('title').value = data.autosave.title || '';
             
-            if (editorMode === 'visual') {
-                document.getElementById('contentVisual').innerHTML = data.autosave.content || '';
+            let isMarkdown = false;
+            let mdContent = '';
+            if (data.autosave.content && data.autosave.content.includes('id="markdown-source"')) {
+                const match = data.autosave.content.match(/id="markdown-source"\s+data-base64="([^"]*)"/);
+                if (match && match[1]) {
+                    try {
+                        mdContent = decodeURIComponent(escape(atob(match[1])));
+                        isMarkdown = true;
+                    } catch (e) {
+                        console.error('Error decoding markdown', e);
+                    }
+                }
+            }
+            
+            if (isMarkdown) {
+                window.enableMarkdown = true;
+                document.body.classList.add('markdown-mode');
+                const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                if (enableMarkdownCheck) enableMarkdownCheck.checked = true;
+                
+                document.getElementById('content').value = mdContent;
+                const ve = document.getElementById('contentVisual');
+                if (ve) {
+                    ve.contentEditable = 'true';
+                    if (editorMode === 'visual') {
+                        ve.innerHTML = parseMarkdownToHtml(mdContent);
+                    }
+                }
             } else {
-                document.getElementById('content').value = data.autosave.content || '';
+                if (window.enableMarkdown) {
+                    document.getElementById('content').value = data.autosave.content || '';
+                    const ve = document.getElementById('contentVisual');
+                    if (ve) {
+                        ve.contentEditable = 'true';
+                        if (editorMode === 'visual') {
+                            ve.innerHTML = parseMarkdownToHtml(data.autosave.content || '');
+                        }
+                    }
+                } else {
+                    window.enableMarkdown = false;
+                    document.body.classList.remove('markdown-mode');
+                    const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                    if (enableMarkdownCheck) enableMarkdownCheck.checked = false;
+                    
+                    document.getElementById('content').value = data.autosave.content || '';
+                    const ve = document.getElementById('contentVisual');
+                    if (ve) {
+                        ve.contentEditable = 'true';
+                        if (editorMode === 'visual') {
+                            ve.innerHTML = data.autosave.content || '';
+                        }
+                    }
+                }
             }
             
             showNotification('Автосохранение загружено', 'success');
@@ -2350,13 +2884,68 @@ function loadAndApplyAllSettings() {
                 const hideModeButtons = settings.hideEditorModeButtons || false;
                 const amoledTheme = settings.amoledTheme || false;
                 const enableUndoRedo = settings.enableUndoRedo || false;
+                const smoothTyping = settings.smoothTyping || false;
+                const headerBottomPosition = settings.headerBottomPosition || false;
+                const enableMarkdown = settings.enableMarkdown || false;
+                const contentWidth = settings.contentWidth || 920;
                 
                 const hideModeCheck = document.getElementById('hideEditorModeButtons');
                 const amoledCheck = document.getElementById('amoledTheme');
                 const enableUndoRedoCheck = document.getElementById('enableUndoRedo');
+                const smoothTypingCheck = document.getElementById('smoothTyping');
+                const headerBottomCheck = document.getElementById('headerBottomPosition');
+                const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                const contentWidthInput = document.getElementById('settingsContentWidth');
+                
                 if (hideModeCheck) hideModeCheck.checked = hideModeButtons;
                 if (amoledCheck) amoledCheck.checked = amoledTheme;
                 if (enableUndoRedoCheck) enableUndoRedoCheck.checked = enableUndoRedo;
+                if (smoothTypingCheck) smoothTypingCheck.checked = smoothTyping;
+                if (headerBottomCheck) headerBottomCheck.checked = headerBottomPosition;
+                if (enableMarkdownCheck) enableMarkdownCheck.checked = enableMarkdown;
+                if (contentWidthInput) contentWidthInput.value = contentWidth;
+
+                // Apply content width dynamically
+                window.editorContentWidth = contentWidth;
+                let widthStyle = document.getElementById('editor-width-style');
+                if (!widthStyle) {
+                    widthStyle = document.createElement('style');
+                    widthStyle.id = 'editor-width-style';
+                    document.head.appendChild(widthStyle);
+                }
+                const bodyMaxWidth = Math.max(1200, contentWidth + 40);
+                widthStyle.innerHTML = `
+                    body {
+                        max-width: ${bodyMaxWidth}px !important;
+                    }
+                    .editor-field,
+                    .editor-toolbar-wrap,
+                    .formatting-buttons.is-floating {
+                        max-width: ${contentWidth}px !important;
+                    }
+                `;
+                
+                window.enableMarkdown = enableMarkdown;
+                if (enableMarkdown) {
+                    document.body.classList.add('markdown-mode');
+                    const ve = document.getElementById('contentVisual');
+                    if (ve) ve.contentEditable = 'true';
+                } else {
+                    document.body.classList.remove('markdown-mode');
+                    const ve = document.getElementById('contentVisual');
+                    if (ve) ve.contentEditable = 'true';
+                }
+                
+                if (headerBottomPosition) {
+                    document.body.classList.add('header-bottom');
+                } else {
+                    document.body.classList.remove('header-bottom');
+                }
+                
+                window.smoothTypingEnabled = smoothTyping;
+                if (typeof applySmoothTypingState === 'function') {
+                    applySmoothTypingState();
+                }
                 
                 window.amoledThemeEnabled = amoledTheme;
                 if (typeof updateAmoledState === 'function') {
@@ -2406,6 +2995,35 @@ function loadAndApplyAllSettings() {
                         actionsFormattingDivider.style.display = 'none';
                     }
                 }
+                
+                // 3. Безопасность
+                const dataPath = settings.data_path || '/var/www/html/data';
+                const passwordEnabled = settings.password_set || false;
+                
+                const dataPathInput = document.getElementById('settingsDataPath');
+                if (dataPathInput) dataPathInput.value = dataPath;
+                
+                const notSetDiv = document.getElementById('securityPasswordNotSet');
+                const setDiv = document.getElementById('securityPasswordSet');
+                
+                if (passwordEnabled) {
+                    if (notSetDiv) notSetDiv.style.display = 'none';
+                    if (setDiv) setDiv.style.display = 'block';
+                    
+                    const changeForm = document.getElementById('changePasswordFormContainer');
+                    const disableForm = document.getElementById('disablePasswordFormContainer');
+                    if (changeForm) changeForm.style.display = 'none';
+                    if (disableForm) disableForm.style.display = 'none';
+                } else {
+                    if (notSetDiv) notSetDiv.style.display = 'block';
+                    if (setDiv) setDiv.style.display = 'none';
+                    
+                    const passwordEnabledCheck = document.getElementById('settingsPasswordEnabled');
+                    if (passwordEnabledCheck) {
+                        passwordEnabledCheck.checked = false;
+                        togglePasswordFieldsVisibility();
+                    }
+                }
             }
         })
         .catch(error => {
@@ -2421,6 +3039,9 @@ function loadAppearanceSettings() {
 function saveAppearanceSettings() {
     const hideButtons = document.getElementById('hideEditorModeButtons').checked;
     const amoled = document.getElementById('amoledTheme').checked;
+    const smooth = document.getElementById('smoothTyping').checked;
+    const headerBottom = document.getElementById('headerBottomPosition').checked;
+    const contentWidth = parseInt(document.getElementById('settingsContentWidth').value) || 920;
     
     fetch('save_editor_settings.php', {
         method: 'POST',
@@ -2429,7 +3050,10 @@ function saveAppearanceSettings() {
         },
         body: JSON.stringify({ 
             hideEditorModeButtons: hideButtons,
-            amoledTheme: amoled
+            amoledTheme: amoled,
+            smoothTyping: smooth,
+            headerBottomPosition: headerBottom,
+            contentWidth: contentWidth
         })
     })
     .then(response => response.json())
@@ -2458,13 +3082,17 @@ function loadExperimentalSettings() {
 
 function saveExperimentalSettings() {
     const enableUndoRedo = document.getElementById('enableUndoRedo').checked;
+    const enableMarkdown = document.getElementById('enableMarkdown').checked;
     
     fetch('save_editor_settings.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ enableUndoRedo: enableUndoRedo })
+        body: JSON.stringify({ 
+            enableUndoRedo: enableUndoRedo,
+            enableMarkdown: enableMarkdown
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -2483,6 +3111,160 @@ function saveExperimentalSettings() {
 
 function applyExperimentalSettings() {
     loadAndApplyAllSettings();
+}
+
+function loadSecuritySettings() {
+    loadAndApplyAllSettings();
+}
+
+function togglePasswordFieldsVisibility() {
+    const enabled = document.getElementById('settingsPasswordEnabled').checked;
+    const passwordFields = document.getElementById('securityPasswordFields');
+    if (passwordFields) {
+        passwordFields.style.display = enabled ? 'block' : 'none';
+    }
+}
+
+function showChangePasswordForm() {
+    const changeForm = document.getElementById('changePasswordFormContainer');
+    const disableForm = document.getElementById('disablePasswordFormContainer');
+    if (changeForm) {
+        changeForm.style.display = changeForm.style.display === 'none' ? 'block' : 'none';
+        if (changeForm.style.display === 'block') {
+            const oldPassInput = document.getElementById('changeSettingsOldPassword');
+            if (oldPassInput) oldPassInput.focus();
+        }
+    }
+    if (disableForm) disableForm.style.display = 'none';
+}
+
+function showDisablePasswordForm() {
+    const changeForm = document.getElementById('changePasswordFormContainer');
+    const disableForm = document.getElementById('disablePasswordFormContainer');
+    if (disableForm) {
+        disableForm.style.display = disableForm.style.display === 'none' ? 'block' : 'none';
+        if (disableForm.style.display === 'block') {
+            const disablePassInput = document.getElementById('disableSettingsPassword');
+            if (disablePassInput) disablePassInput.focus();
+        }
+    }
+    if (changeForm) changeForm.style.display = 'none';
+}
+
+function saveSecuritySettings() {
+    const dataPath = document.getElementById('settingsDataPath').value.trim();
+    const isPasswordSet = document.getElementById('securityPasswordSet').style.display === 'block';
+    
+    let payload = {
+        data_path: dataPath
+    };
+    
+    if (!isPasswordSet) {
+        const passwordEnabled = document.getElementById('settingsPasswordEnabled').checked;
+        payload.password_enabled = passwordEnabled;
+        
+        if (passwordEnabled) {
+            const newPassword = document.getElementById('settingsNewPassword').value;
+            const confirmPassword = document.getElementById('settingsConfirmPassword').value;
+            
+            if (!newPassword) {
+                showAlert('Введите новый пароль!');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showAlert('Пароли не совпадают!');
+                return;
+            }
+            payload.new_password = newPassword;
+        }
+    } else {
+        const changeFormVisible = document.getElementById('changePasswordFormContainer').style.display === 'block';
+        const disableFormVisible = document.getElementById('disablePasswordFormContainer').style.display === 'block';
+        
+        if (changeFormVisible) {
+            const oldPassword = document.getElementById('changeSettingsOldPassword').value;
+            const newPassword = document.getElementById('changeSettingsNewPassword').value;
+            const confirmPassword = document.getElementById('changeSettingsConfirmPassword').value;
+            
+            if (!oldPassword) {
+                showAlert('Введите старый пароль!');
+                return;
+            }
+            if (!newPassword) {
+                showAlert('Введите новый пароль!');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showAlert('Новые пароли не совпадают!');
+                return;
+            }
+            
+            payload.password_enabled = true;
+            payload.old_password = oldPassword;
+            payload.new_password = newPassword;
+        } else if (disableFormVisible) {
+            const oldPassword = document.getElementById('disableSettingsPassword').value;
+            if (!oldPassword) {
+                showAlert('Введите текущий пароль для подтверждения отключения!');
+                return;
+            }
+            
+            payload.password_enabled = false;
+            payload.old_password = oldPassword;
+        } else {
+            payload.password_enabled = true;
+        }
+    }
+    
+    fetch('save_editor_settings.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const inputs = [
+                'settingsNewPassword', 'settingsConfirmPassword',
+                'changeSettingsOldPassword', 'changeSettingsNewPassword', 'changeSettingsConfirmPassword',
+                'disableSettingsPassword'
+            ];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            
+            loadAndApplyAllSettings();
+            showAlert('Настройки безопасности успешно сохранены!');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showAlert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        showAlert('Ошибка сохранения настроек безопасности');
+    });
+}
+
+function lockEditor() {
+    fetch('logout.php', { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showAlert('Не удалось заблокировать редактор');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        window.location.reload();
+    });
 }
 
 // Функции для работы с пользовательскими шрифтами
@@ -3017,7 +3799,7 @@ function openImageEditorModal(imgElement) {
         
         setImgEditorTool('pencil');
     };
-    tempImg.src = imgElement.src.split('?')[0];
+    tempImg.src = imgElement.src.replace(/[?&]t=\d+/, '');
 }
 
 function closeImgEditorModal() {
@@ -3288,7 +4070,8 @@ function saveImgEditorChanges() {
         
         if (data.success) {
             imgEditorTargetImg.setAttribute('src', data.url);
-            imgEditorTargetImg.src = data.url + '?t=' + Date.now();
+            const separator = data.url.includes('?') ? '&' : '?';
+            imgEditorTargetImg.src = data.url + separator + 't=' + Date.now();
             
             showNotification('Изображение успешно сохранено!', 'success');
             closeImgEditorModal();

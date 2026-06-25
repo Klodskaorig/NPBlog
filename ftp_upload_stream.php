@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 // Повышаем стабильность: увеличиваем лимиты времени и памяти
 set_time_limit(1800); // 30 минут
 ini_set('memory_limit', '512M');
@@ -85,7 +86,7 @@ if (empty($ftpServer) || empty($ftpUsername) || empty($ftpDirectory)) {
     exit;
 }
 
-$localDataDir = __DIR__ . '/data';
+$localDataDir = rtrim(getDataPath(), '/\\');
 if (!is_dir($localDataDir)) {
     sendEvent('error', ['message' => 'Папка data не найдена']);
     exit;
@@ -177,7 +178,7 @@ function uploadDirectory(&$connId, $localDir, $remoteDir, &$uploadedCount, &$fai
                 return false;
             }
         } else {
-            $relativePath = str_replace(__DIR__ . '/', '', $localPath);
+            $relativePath = 'data/' . ltrim(substr($localPath, strlen($localDataDir)), '/\\');
             $localSize = filesize($localPath);
             
             // Умная синхронизация: пропускаем файлы, если размер на сервере совпадает

@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 // Удаляем файл глобального фона
-$backgroundsDir = 'data/backgrounds/';
+$backgroundsDir = getDataPath('backgrounds/');
 $files = glob($backgroundsDir . 'global-bg.*');
 foreach ($files as $file) {
     if (file_exists($file)) {
@@ -10,10 +11,19 @@ foreach ($files as $file) {
     }
 }
 
-// Удаляем глобальные настройки
-$settingsFile = 'data/global-settings.json';
+// Обновляем глобальные настройки
+$settingsFile = getDataPath('global-settings.json');
 if (file_exists($settingsFile)) {
-    unlink($settingsFile);
+    $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
+    unset($settings['background']);
+    unset($settings['backgroundMode']);
+    unset($settings['backgroundScope']);
+    
+    if (empty($settings)) {
+        unlink($settingsFile);
+    } else {
+        file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    }
 }
 
 // Очищаем opcode cache если включен
@@ -22,20 +32,20 @@ if (function_exists('opcache_invalidate')) {
 }
 
 // Удаляем фон из всех статей (только если у них нет своего фона)
-$metaFile = 'data/blog/posts-meta.json';
+$metaFile = getDataPath('blog/posts-meta.json');
 if (file_exists($metaFile)) {
     $meta = json_decode(file_get_contents($metaFile), true);
     
     foreach ($meta as $post) {
         // Удаляем только если у статьи нет своего фона
         if (!isset($post['background']) && isset($post['filename'])) {
-            $htmlFile = 'data/blog/' . $post['filename'];
+            $htmlFile = getDataPath('blog/') . $post['filename'];
             if (file_exists($htmlFile)) {
                 $html = file_get_contents($htmlFile);
                 
                 // Удаляем wrapper с фоном
                 $html = preg_replace(
-                    '/<div class="content-wrapper" style="[^"]*">(\s*<h1>.*<a href="\.\.\/\.\.\/data\/blog\.html" class="back-link">.*?<\/a>)\s*<\/div>/s',
+                    '/<div class="content-wrapper" style="[^"]*">(\s*<h1>.*<a href="(?:\.\.\/\.\.\/data\/|\.\.\/)blog\.html" class="back-link">.*?<\/a>)\s*<\/div>/s',
                     '$1',
                     $html
                 );

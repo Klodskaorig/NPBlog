@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 require_once 'background_functions.php';
@@ -13,7 +14,7 @@ foreach ($backgroundsData as $postId => $settings) {
     }
     
     // Находим файл статьи
-    $metaFile = 'data/blog/posts-meta.json';
+    $metaFile = getDataPath('blog/posts-meta.json');
     if (!file_exists($metaFile)) {
         continue;
     }
@@ -33,7 +34,7 @@ foreach ($backgroundsData as $postId => $settings) {
         continue;
     }
     
-    $htmlFile = 'data/blog/' . $filename;
+    $htmlFile = getDataPath('blog/') . $filename;
     if (!file_exists($htmlFile)) {
         $errors[] = "HTML файл $htmlFile не существует";
         continue;

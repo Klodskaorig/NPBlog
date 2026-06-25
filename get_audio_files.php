@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
-$audioDir = 'data/files/audio/';
+$audioDir = getDataPath('files/audio/');
 
 if (!file_exists($audioDir)) {
     echo json_encode(['success' => true, 'files' => []]);
@@ -19,7 +20,7 @@ foreach ($items as $item) {
     if (is_file($filePath)) {
         $files[] = [
             'name' => $item,
-            'path' => '/' . $filePath,
+            'path' => getDataUrl('files/audio/' . $item),
             'size' => filesize($filePath)
         ];
     }

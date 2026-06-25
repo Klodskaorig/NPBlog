@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 // Скрипт миграции настроек фонов из posts-meta.json в post_backgrounds.json
 
-$metaFile = 'data/blog/posts-meta.json';
-$backgroundsFile = 'data/post_backgrounds.json';
+$metaFile = getDataPath('blog/posts-meta.json');
+$backgroundsFile = getDataPath('post_backgrounds.json');
 
 if (!file_exists($metaFile)) {
     echo "Файл posts-meta.json не найден\n";

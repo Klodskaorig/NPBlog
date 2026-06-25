@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 $data = json_decode(file_get_contents('php://input'), true);
@@ -8,7 +9,7 @@ if (!isset($data['title'])) {
     exit;
 }
 
-$settingsFile = 'data/blog-view-settings.json';
+$settingsFile = getDataPath('blog-view-settings.json');
 $settings = [
     'title' => $data['title']
 ];

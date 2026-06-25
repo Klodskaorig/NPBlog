@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 function checkFile($filename, $searchString) {
@@ -14,7 +15,7 @@ function checkFile($filename, $searchString) {
 
 // Проверяем наличие "Powered by NPBlog" в файлах
 $savePostCheck = checkFile('save_post.php', 'Powered by NPBlog');
-$blogHtmlCheck = checkFile('data/blog.html', 'Powered by NPBlog');
+$blogHtmlCheck = checkFile(getDataPath('blog.html'), 'Powered by NPBlog');
 
 $errors = [];
 

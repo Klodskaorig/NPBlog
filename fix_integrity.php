@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 $fixed = [];
@@ -89,8 +90,8 @@ if (file_exists('update_post.php')) {
 }
 
 // Исправляем data/blog.html
-if (file_exists('data/blog.html')) {
-    $content = file_get_contents('data/blog.html');
+if (file_exists(getDataPath('blog.html'))) {
+    $content = file_get_contents(getDataPath('blog.html'));
     
     if (strpos($content, 'Powered by NPBlog') === false) {
         // Добавляем стили для powered-by
@@ -121,8 +122,8 @@ if (file_exists('data/blog.html')) {
         $htmlToAdd = "\n\n    <div class=\"powered-by\">Powered by NPBlog</div>\n\n    <script>";
         $content = str_replace("\n    <script>", $htmlToAdd, $content);
         
-        if (file_put_contents('data/blog.html', $content)) {
-            $fixed[] = 'data/blog.html';
+        if (file_put_contents(getDataPath('blog.html'), $content)) {
+            $fixed[] = getDataPath('blog.html');
         } else {
             $errors[] = 'Не удалось записать изменения в data/blog.html';
         }

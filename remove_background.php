@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 require_once 'background_functions.php';
@@ -13,7 +14,7 @@ if (!isset($data['postId'])) {
 $postId = intval($data['postId']);
 
 // Удаляем файл фона
-$backgroundsDir = 'data/backgrounds/';
+$backgroundsDir = getDataPath('backgrounds/');
 $files = glob($backgroundsDir . 'bg-' . $postId . '.*');
 foreach ($files as $file) {
     unlink($file);
@@ -36,7 +37,7 @@ if ($bgSettings) {
 }
 
 // Проверяем наличие глобального фона
-$globalSettingsFile = 'data/global-settings.json';
+$globalSettingsFile = getDataPath('global-settings.json');
 $globalSettings = null;
 
 if (file_exists($globalSettingsFile)) {
@@ -44,13 +45,13 @@ if (file_exists($globalSettingsFile)) {
 }
 
 // Обновляем HTML файл статьи
-$metaFile = 'data/blog/posts-meta.json';
+$metaFile = getDataPath('blog/posts-meta.json');
 if (file_exists($metaFile)) {
     $meta = json_decode(file_get_contents($metaFile), true);
     
     foreach ($meta as $post) {
         if ($post['id'] == $postId && isset($post['filename'])) {
-            $htmlFile = 'data/blog/' . $post['filename'];
+            $htmlFile = getDataPath('blog/') . $post['filename'];
             if (file_exists($htmlFile)) {
                 // Если есть глобальный фон, применяем его
                 if ($globalSettings && isset($globalSettings['background'])) {

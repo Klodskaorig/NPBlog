@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
-$backgroundsDir = 'data/backgrounds/';
+$backgroundsDir = getDataPath('backgrounds/');
 
 // Удаляем фоновые файлы блога
 $oldFiles = glob($backgroundsDir . 'blog-bg.*');
@@ -12,7 +13,7 @@ foreach ($oldFiles as $oldFile) {
 }
 
 // Читаем текущие настройки вида
-$settingsFile = 'data/blog-view-settings.json';
+$settingsFile = getDataPath('blog-view-settings.json');
 $settings = [];
 if (file_exists($settingsFile)) {
     $settings = json_decode(file_get_contents($settingsFile), true);

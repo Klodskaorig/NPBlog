@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
-$fontsDir = 'data/fonts/';
+$fontsDir = getDataPath('fonts/');
 $fonts = [];
 
 if (is_dir($fontsDir)) {

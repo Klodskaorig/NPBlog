@@ -1,19 +1,20 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $action = $_GET['action'] ?? '';
 
 // Защищенные файлы и папки, которые НЕ должны обновляться
 $protectedPaths = [
-    'data/blog/',
-    'data/fonts/',
-    'data/images/',
-    'data/audio/',
-    'data/video/',
-    'data/files/',
+    getDataPath('blog/'),
+    getDataPath('fonts/'),
+    getDataPath('images/'),
+    getDataPath('audio/'),
+    getDataPath('video/'),
+    getDataPath('files/'),
     'data_backup/',
     'editor_backup/',
-    'data/global-settings.json',
+    getDataPath('global-settings.json'),
     'editor_settings.json',
     'post_backgrounds.json',
     'blog-view-settings.json',
@@ -31,7 +32,7 @@ function isProtected($path) {
     }
     
     // Специальное исключение: data/blog.html должен обновляться
-    if ($path === 'data/blog.html') {
+    if ($path === getDataPath('blog.html')) {
         return false;
     }
     

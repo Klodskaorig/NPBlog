@@ -1,3 +1,9 @@
+@font-face {
+    font-family: 'InputMono-Light';
+    src: url('../../fonts/InputMono-Light.ttf') format('truetype');
+    font-display: swap;
+}
+
 :root {
     --bg-color: #ffffff;
     --text-color: #000000;
@@ -54,6 +60,8 @@ h1 {
     margin-top: 20px;
     font-size: 1.1em;
     line-height: 1.8;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .content img {
@@ -73,18 +81,21 @@ h1 {
 .blog-image-wrap {
     position: relative;
     display: inline-block;
-    max-width: 100%;
+    max-width: 100% !important;
     vertical-align: top;
     text-align: center;
 }
 .blog-image-wrap img {
     display: block;
-    max-width: 100%;
-    height: auto;
+    max-width: 100% !important;
+    height: auto !important;
     vertical-align: middle;
     border-radius: 8px;
     margin: 0 !important;
     border: 2px solid var(--border-color) !important;
+}
+.blog-image-wrap img.no-radius, .blog-image.no-radius {
+    border-radius: 0px !important;
 }
 .blog-image-wrap .caption {
     display: block;
@@ -97,10 +108,38 @@ h1 {
     line-height: 1.4;
 }
 
+/* Обеспечение правильного отображения и отзывчивости сеток изображений */
+.grid-container {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+.grid-container > * {
+    min-width: 0 !important;
+}
+.grid-container .blog-image-align-wrap {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+.grid-container .blog-image-wrap {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+.grid-container .blog-image-wrap img {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
 .content h2 {
     margin-top: 30px;
     margin-bottom: 15px;
-    color: var(--text-color);
     font-weight: bold;
 }
 
@@ -591,6 +630,9 @@ mark[data-marker-color="purple"] {
     border: none !important;
     box-shadow: none !important;
 }
+html.is-android .blog-ascii-art {
+    font-family: 'InputMono-Light', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+}
 [data-theme="dark"] .blog-ascii-art {
     background: transparent !important;
     box-shadow: none !important;
@@ -599,3 +641,58 @@ mark[data-marker-color="purple"] {
     background: transparent !important;
     border: none !important;
 }
+
+/* --- Стили для блоков кода --- */
+.code-block {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+    position: relative;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    max-height: 400px;
+    overflow-x: auto;
+    white-space: pre;
+    color: #000;
+    text-align: left;
+}
+
+[data-theme="dark"] .code-block {
+    background: #1e1e1e;
+    border-color: #444;
+    color: #d4d4d4;
+}
+
+.code-block::before {
+    content: attr(data-language);
+    position: absolute;
+    top: -12px;
+    right: 10px;
+    background: #fff;
+    padding: 0 5px;
+    font-size: 12px;
+    color: #666;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+[data-theme="dark"] .code-block::before {
+    background: #000;
+    color: #ccc;
+    border-color: #444;
+}
+
+.blog-smile {
+    display: inline-block !important;
+    height: 24px !important;
+    width: auto !important;
+    vertical-align: middle !important;
+    margin: 0 2px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+

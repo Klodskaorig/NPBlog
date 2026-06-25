@@ -4,5 +4,13 @@
     "autosaveEnabled": false,
     "autosaveInterval": 60,
     "tutorialCompleted": true,
-    "amoledTheme": false
+    "amoledTheme": false,
+    "data_path": "\/var\/www\/html\/data",
+    "password_hash": "",
+    "failed_attempts": 0,
+    "lockout_until": 0,
+    "smoothTyping": false,
+    "headerBottomPosition": false,
+    "enableMarkdown": false,
+    "contentWidth": 920
 }

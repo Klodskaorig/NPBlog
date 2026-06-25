@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 
 define('CREDENTIALS_FILE', 'ftp.json');
 
@@ -56,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $localDataDir = __DIR__ . '/data';
+    $localDataDir = rtrim(getDataPath(), '/\\');
     if (!is_dir($localDataDir)) {
         echo json_encode(['success' => false, 'message' => 'Папка data не найдена']);
         exit;

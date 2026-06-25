@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 // Отключаем вывод ошибок в браузер
 error_reporting(0);
 ini_set('display_errors', 0);
@@ -6,7 +7,7 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    $rawInput = file_get_contents('php://input');
+    $rawInput = file_get_contents(php_sapi_name() === 'cli' ? 'php://stdin' : 'php://input');
     
     if (empty($rawInput)) {
         echo json_encode(['success' => false, 'error' => 'Пустой запрос']);
@@ -27,8 +28,8 @@ try {
     
     $postId = $data['id'];
 
-    // Загружаем метаданные
-    $metaFile = 'data/blog/posts-meta.json';
+    $blogDir = getDataPath('blog/');
+    $metaFile = $blogDir . 'posts-meta.json';
     if (!file_exists($metaFile)) {
         echo json_encode(['success' => false, 'error' => 'Метаданные не найдены']);
         exit;
@@ -57,7 +58,7 @@ try {
     }
 
     // Читаем файл статьи
-    $filename = 'data/blog/' . $post['filename'];
+    $filename = $blogDir . $post['filename'];
     if (!file_exists($filename)) {
         echo json_encode(['success' => false, 'error' => 'Файл статьи не найден: ' . $filename]);
         exit;
@@ -73,30 +74,35 @@ try {
 
     $xpath = new DOMXPath($dom);
 
-    // Извлекаем заголовок
-    $titleNode = $xpath->query('//h1')->item(0);
-    $title = $titleNode ? $titleNode->textContent : '';
+    // Извлекаем заголовок (пробуем сначала из метаданных, как надежный источник)
+    $title = isset($post['title']) ? $post['title'] : '';
+    if (empty($title)) {
+        $titleNode = $xpath->query('//h1')->item(0);
+        $title = $titleNode ? $titleNode->textContent : '';
+    }
 
-    // Извлекаем контент
-    // Сначала пробуем новый формат (<article id="npblog-post-content">)
-    $contentNode = $xpath->query('//article[@id="npblog-post-content"]')->item(0);
-    
-    // Если не найдено, пробуем старый формат (<div class="content">)
-    if (!$contentNode) {
-        $contentNode = $xpath->query('//div[@class="content"]')->item(0);
+    // Извлекаем и очищаем контент
+    require_once 'templates_helper.php';
+    $rawContent = extractPostContentFromHtml($content, $postId);
+
+    // Конвертируем статические пути к папке data в пути через serve_data.php, чтобы картинки загружались в редакторе
+    $editorSettingsFile = __DIR__ . '/editor_settings.json';
+    $editorSettings = [];
+    if (file_exists($editorSettingsFile)) {
+        $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
     }
-    
-    $rawContent = '';
-    if ($contentNode) {
-        foreach ($contentNode->childNodes as $child) {
-            $rawContent .= $dom->saveHTML($child);
-        }
+    $dataDir = isset($editorSettings['data_path']) ? $editorSettings['data_path'] : '';
+    if (empty($dataDir)) {
+        $dataDir = __DIR__ . '/data/';
     }
+    $dirName = basename(rtrim(str_replace('\\', '/', $dataDir), '/'));
+    $pattern = '/(src|href|poster)=(["\'])(?:\/)?' . preg_quote($dirName, '/') . '\//i';
+    $rawContent = preg_replace($pattern, '$1=$2serve_data.php?file=', $rawContent);
 
     echo json_encode([
         'success' => true,
         'title' => html_entity_decode($title, ENT_QUOTES, 'UTF-8'),
-        'content' => html_entity_decode($rawContent, ENT_QUOTES, 'UTF-8')
+        'content' => $rawContent
     ]);
     
 } catch (Exception $e) {

@@ -1,11 +1,12 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 require_once 'background_functions.php';
 
 // Функция для перенумерации статей (копия из renumber_posts.php)
 function renumberPostsAfterDelete() {
-    $metaFile = 'data/blog/posts-meta.json';
+    $metaFile = getDataPath('blog/posts-meta.json');
     $backupMetaFile = 'data_backup/backup-meta.json';
     
     if (!file_exists($metaFile)) {
@@ -47,8 +48,8 @@ function renumberPostsAfterDelete() {
             ];
             
             // Переименовываем файл статьи
-            $oldFilename = 'data/blog/post-' . $oldId . '.html';
-            $newFilename = 'data/blog/post-' . $newId . '.html';
+            $oldFilename = getDataPath('blog/post-') . $oldId . '.html';
+            $newFilename = getDataPath('blog/post-') . $newId . '.html';
             
             if (file_exists($oldFilename)) {
                 $content = file_get_contents($oldFilename);
@@ -63,8 +64,8 @@ function renumberPostsAfterDelete() {
                     $extension = $match[1];
                     $newBgFile = 'bg-' . $newId . '.' . $extension;
                     
-                    $oldBgPath = 'data/backgrounds/' . $oldBgFile;
-                    $newBgPath = 'data/backgrounds/' . $newBgFile;
+                    $oldBgPath = getDataPath('backgrounds/') . $oldBgFile;
+                    $newBgPath = getDataPath('backgrounds/') . $newBgFile;
                     
                     if (file_exists($oldBgPath)) {
                         rename($oldBgPath, $newBgPath);
@@ -153,7 +154,7 @@ $data = json_decode(file_get_contents('php://input'), true);
 $postId = $data['id'];
 
 // Загружаем метаданные
-$metaFile = 'data/blog/posts-meta.json';
+$metaFile = getDataPath('blog/posts-meta.json');
 $backupMetaFile = 'data_backup/backup-meta.json';
 
 if (!file_exists($metaFile)) {
@@ -180,7 +181,7 @@ if ($postIndex === -1) {
 $deletedPostTitle = $meta[$postIndex]['title'];
 
 // Удаляем файл статьи
-$filename = 'data/blog/' . $meta[$postIndex]['filename'];
+$filename = getDataPath('blog/') . $meta[$postIndex]['filename'];
 if (file_exists($filename)) {
     unlink($filename);
 }
@@ -188,7 +189,7 @@ if (file_exists($filename)) {
 // Удаляем фоновое изображение статьи если есть
 $bgSettings = getPostBackground($postId);
 if ($bgSettings && isset($bgSettings['background'])) {
-    $bgFile = 'data/backgrounds/' . $bgSettings['background'];
+    $bgFile = getDataPath('backgrounds/') . $bgSettings['background'];
     if (file_exists($bgFile)) {
         unlink($bgFile);
     }

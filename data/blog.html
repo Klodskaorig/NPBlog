@@ -361,6 +361,27 @@
         // Загружаем настройки при загрузке страницы
         loadBlogViewSettings();
 
+        // Загрузка глобальных настроек (скрытие Powered by)
+        async function applyGlobalSettings() {
+            try {
+                const response = await fetch('global-settings.json?t=' + Date.now());
+                if (response.ok) {
+                    const settings = await response.json();
+                    const poweredBy = document.querySelector('.powered-by');
+                    if (poweredBy) {
+                        if (settings.hidePoweredBy) {
+                            poweredBy.style.display = 'none';
+                        } else {
+                            poweredBy.style.display = '';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not load global settings', error);
+            }
+        }
+        applyGlobalSettings();
+
         // Загрузка списка статей из posts-meta.json
         async function loadPosts() {
             const container = document.getElementById('posts-container');

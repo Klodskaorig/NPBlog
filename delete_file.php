@@ -1,4 +1,7 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', 0);
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $data = json_decode(file_get_contents('php://input'), true);
@@ -9,14 +12,14 @@ if (!isset($data['filename'])) {
 }
 
 $filename = basename($data['filename']); // Защита от path traversal
-$filePath = 'data/files/' . $filename;
+$filePath = getDataPath('files/') . $filename;
 
 if (!file_exists($filePath)) {
     echo json_encode(['success' => false, 'error' => 'Файл не найден']);
     exit;
 }
 
-if (unlink($filePath)) {
+if (@unlink($filePath)) {
     echo json_encode(['success' => true]);
 } else {
     echo json_encode(['success' => false, 'error' => 'Не удалось удалить файл']);

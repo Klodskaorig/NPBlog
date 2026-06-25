@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $data = json_decode(file_get_contents('php://input'), true);
@@ -16,7 +17,7 @@ if (!file_exists($backupPath)) {
 }
 
 // Загружаем метаданные статей
-$metaFile = 'data/blog/posts-meta.json';
+$metaFile = getDataPath('blog/posts-meta.json');
 if (!file_exists($metaFile)) {
     echo json_encode(['success' => false, 'error' => 'Метаданные статей не найдены'], JSON_UNESCAPED_UNICODE);
     exit;
@@ -39,7 +40,7 @@ if ($postIndex === -1) {
 }
 
 // Копируем бэкап в основной файл
-$targetPath = 'data/blog/' . $meta[$postIndex]['filename'];
+$targetPath = getDataPath('blog/') . $meta[$postIndex]['filename'];
 $backupContent = file_get_contents($backupPath);
 
 if (file_put_contents($targetPath, $backupContent)) {

@@ -1,9 +1,10 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 function updatePostBackground($postId) {
     // Загружаем метаданные
-    $metaFile = 'data/blog/posts-meta.json';
+    $metaFile = getDataPath('blog/posts-meta.json');
     if (!file_exists($metaFile)) {
         return false;
     }
@@ -23,7 +24,7 @@ function updatePostBackground($postId) {
     }
     
     // Читаем существующий HTML файл
-    $filename = 'data/blog/' . $postData['filename'];
+    $filename = getDataPath('blog/') . $postData['filename'];
     if (!file_exists($filename)) {
         return false;
     }
@@ -32,7 +33,7 @@ function updatePostBackground($postId) {
     
     // ВСЕГДА удаляем старый wrapper и стиль body перед применением нового
     $html = preg_replace(
-        '/<div class="content-wrapper" style="[^"]*">(\s*<h1>.*<a href="\.\.\/\.\.\/data\/blog\.html" class="back-link">.*?<\/a>)\s*<\/div>/s',
+        '/<div class="content-wrapper" style="[^"]*">(\s*<h1>.*<a href="(?:\.\.\/\.\.\/data\/|\.\.\/)blog\.html" class="back-link">.*?<\/a>)\s*<\/div>/s',
         '$1',
         $html
     );
@@ -46,13 +47,13 @@ function updatePostBackground($postId) {
         $bgMode = isset($postData['backgroundMode']) ? $postData['backgroundMode'] : 'cover';
         $bgScope = isset($postData['backgroundScope']) ? $postData['backgroundScope'] : 'content';
         
-        // Формируем стиль в зависимости от режима
+        $bgUrl = getDataUrl("backgrounds/{$postData['background']}");
         if ($bgMode === 'repeat') {
-            $backgroundStyle = "background-image: url('/data/backgrounds/{$postData['background']}'); background-repeat: repeat; background-size: auto;";
+            $backgroundStyle = "background-image: url('{$bgUrl}'); background-repeat: repeat; background-size: auto;";
         } elseif ($bgMode === 'contain') {
-            $backgroundStyle = "background-image: url('/data/backgrounds/{$postData['background']}'); background-size: contain; background-position: center; background-repeat: no-repeat;";
+            $backgroundStyle = "background-image: url('{$bgUrl}'); background-size: contain; background-position: center; background-repeat: no-repeat;";
         } else { // cover
-            $backgroundStyle = "background-image: url('/data/backgrounds/{$postData['background']}'); background-size: cover; background-position: center; background-repeat: no-repeat;";
+            $backgroundStyle = "background-image: url('{$bgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;";
         }
         
         // Применяем фон в зависимости от области
@@ -64,7 +65,7 @@ function updatePostBackground($postId) {
             // Фон только для статьи - оборачиваем контент
             $backgroundStyle .= " min-height: 100vh; padding: 40px 60px;";
             $html = preg_replace(
-                '/(<button class="theme-toggle".*?<\/button>\s*)(<h1>.*<a href="\.\.\/\.\.\/data\/blog\.html" class="back-link">.*?<\/a>)/s',
+                '/(<button class="theme-toggle".*?<\/button>\s*)(<h1>.*<a href="(?:\.\.\/\.\.\/data\/|\.\.\/)blog\.html" class="back-link">.*?<\/a>)/s',
                 '$1<div class="content-wrapper" style="' . $backgroundStyle . '">$2</div>',
                 $html
             );

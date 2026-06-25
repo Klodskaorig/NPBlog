@@ -123,10 +123,11 @@
 
     function saveSelection() {
         const ve = document.getElementById('contentVisual');
+        if (!ve || (document.activeElement !== ve && !ve.contains(document.activeElement))) return;
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) return;
         const range = sel.getRangeAt(0);
-        if (ve && ve.contains(range.commonAncestorContainer)) {
+        if (ve.contains(range.commonAncestorContainer)) {
             savedRange = range.cloneRange();
         }
     }
@@ -145,7 +146,6 @@
             if (editorMode === 'visual') {
                 var ve = document.getElementById('contentVisual');
                 if (ve) ve.focus();
-                saveSelection();
             } else {
                 var ta = document.getElementById('content');
                 if (ta) ta.focus();
@@ -157,7 +157,7 @@
     (function initVisualSelectionTracking() {
         var ve = document.getElementById('contentVisual');
         if (!ve) return;
-        ['mouseup','keyup','input','click','focus','touchend','compositionend'].forEach(function(evt) {
+        ['mouseup','keyup','input','click','touchend','compositionend'].forEach(function(evt) {
             ve.addEventListener(evt, function() {
                 if (editorMode === 'visual') saveSelection();
             }, true);
@@ -338,7 +338,8 @@
         });
         
         // Убираем служебные ZWS (\u200B) и форматируем HTML
-        const cleanedHtml = temp.innerHTML.replace(/\u200B/g, '');
+        let cleanedHtml = temp.innerHTML.replace(/\u200B/g, '');
+        cleanedHtml = cleanedHtml.replace(/(?:[?&]|&amp;)t=\d+/g, '');
         return formatHTML(cleanedHtml);
     }
 
@@ -350,11 +351,16 @@
         const codeBtn = document.getElementById('modeCodeBtn');
         
         if (mode === 'visual') {
-            // sync from code -> visual
-            if (ta.style.display !== 'none') {
-                ve.innerHTML = ta.value;
-                wrapExistingEditorImages();
-                addColumnResizers(); // Добавляем ручки изменения размера столбцов
+            ve.contentEditable = 'true';
+            if (window.enableMarkdown) {
+                ve.innerHTML = parseMarkdownToHtml(ta.value);
+            } else {
+                // sync from code -> visual
+                if (ta.style.display !== 'none') {
+                    ve.innerHTML = ta.value;
+                    wrapExistingEditorImages();
+                    addColumnResizers(); // Добавляем ручки изменения размера столбцов
+                }
             }
             ve.style.display = '';
             ta.style.display = 'none';
@@ -362,9 +368,16 @@
             codeBtn.classList.remove('active');
         } else {
             hideGlobalMediaOverlay();
-            // sync from visual -> code - очищаем от элементов интерфейса
-            if (ve.style.display !== 'none') {
-                ta.value = cleanContentForSave(ve.innerHTML);
+            ve.contentEditable = 'true';
+            if (window.enableMarkdown) {
+                if (ve.style.display !== 'none') {
+                    ta.value = convertHtmlToMarkdown(ve.innerHTML);
+                }
+            } else {
+                // sync from visual -> code - очищаем от элементов интерфейса
+                if (ve.style.display !== 'none') {
+                    ta.value = cleanContentForSave(ve.innerHTML);
+                }
             }
             ta.style.display = '';
             ve.style.display = 'none';
@@ -637,6 +650,42 @@
     function formatText(tag) {
         const ta = document.getElementById('content');
         const ve = document.getElementById('contentVisual');
+        
+        if (window.enableMarkdown && editorMode === 'code') {
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            const selectedText = ta.value.substring(start, end);
+            const beforeText = ta.value.substring(0, start);
+            const afterText = ta.value.substring(end);
+            
+            let formattedText = selectedText;
+            let newCursorStart = start;
+            let newCursorEnd = end;
+            
+            if (tag === 'b') {
+                formattedText = `**${selectedText}**`;
+                newCursorStart += 2;
+                newCursorEnd += 2;
+            } else if (tag === 'i') {
+                formattedText = `*${selectedText}*`;
+                newCursorStart += 1;
+                newCursorEnd += 1;
+            } else if (tag === 's') {
+                formattedText = `~~${selectedText}~~`;
+                newCursorStart += 2;
+                newCursorEnd += 2;
+            } else if (tag === 'h2') {
+                formattedText = `\n## ${selectedText}\n`;
+                newCursorStart += 4;
+                newCursorEnd += 4;
+            }
+            
+            ta.value = beforeText + formattedText + afterText;
+            ta.setSelectionRange(newCursorStart, newCursorEnd);
+            saveToHistory();
+            return;
+        }
+        
         if (editorMode === 'code') {
             const start = ta.selectionStart;
             const end = ta.selectionEnd;
@@ -1145,7 +1194,6 @@
     }
 
     function openTableDialog() {
-        saveSelection();
         document.getElementById('tableDialog').style.display = 'block';
         document.getElementById('tableRows').focus();
     }
@@ -1373,6 +1421,25 @@
             return;
         }
         
+        if (window.enableMarkdown && editorMode === 'code') {
+            let mdTable = '\n';
+            mdTable += '| ' + Array.from({length: cols}, (_, i) => `Заголовок ${i + 1}`).join(' | ') + ' |\n';
+            mdTable += '| ' + Array.from({length: cols}, () => '---').join(' | ') + ' |\n';
+            for (let i = 0; i < rows; i++) {
+                mdTable += '| ' + Array.from({length: cols}, () => ' ').join(' | ') + ' |\n';
+            }
+            mdTable += '\n';
+
+            const ta = document.getElementById('content');
+            const cursorPos = ta.selectionStart;
+            ta.value = ta.value.substring(0, cursorPos) + mdTable + ta.value.substring(cursorPos);
+            ta.focus();
+            saveToHistory();
+            closeTableDialog();
+            showNotification('Таблица добавлена', 'success');
+            return;
+        }
+        
         let tableHtml = '<table><thead><tr>';
         
         // Создаем заголовки
@@ -1581,7 +1648,6 @@
     }
 
     function addLink() {
-        saveSelection();
         var urlInput = document.getElementById('linkUrl');
         var textInput = document.getElementById('linkText');
         urlInput.value = 'https://';
@@ -1618,7 +1684,17 @@
             return;
         }
         var linkText = document.getElementById('linkText').value.trim();
-        if (editorMode === 'code') {
+        
+        if (window.enableMarkdown && editorMode === 'code') {
+            var ta = document.getElementById('content');
+            var start = linkInsertStart;
+            var end = linkInsertEnd;
+            var selectedText = ta.value.substring(start, end);
+            var text = linkText || selectedText || 'ссылка';
+            var link = '[' + text + '](' + url + ')';
+            ta.value = ta.value.substring(0, start) + link + ta.value.substring(end);
+            ta.focus();
+        } else if (editorMode === 'code') {
             var ta = document.getElementById('content');
             var start = linkInsertStart;
             var end = linkInsertEnd;
@@ -1637,9 +1713,113 @@
     }
 
     // Функции для работы с изображениями
+    let selectedImageFiles = [];
+    let isImageDragDropInitialized = false;
+
+    function initImageDragDrop() {
+        if (isImageDragDropInitialized) return;
+        const dropzone = document.getElementById('imageDropzone');
+        if (!dropzone) return;
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => {
+                dropzone.classList.add('drag-over');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => {
+                dropzone.classList.remove('drag-over');
+            }, false);
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                Array.from(files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        selectedImageFiles.push(file);
+                    }
+                });
+                renderImagePreviews();
+            }
+        }, false);
+        
+        isImageDragDropInitialized = true;
+    }
+
+    function renderImagePreviews() {
+        const previewContainer = document.getElementById('imageFilesPreview');
+        const dropzoneText = document.getElementById('imageDropzoneText');
+        if (!previewContainer) return;
+        
+        if (selectedImageFiles.length === 0) {
+            previewContainer.style.display = 'none';
+            previewContainer.innerHTML = '';
+            if (dropzoneText) {
+                dropzoneText.textContent = 'Выберите изображения или перетащите их сюда';
+            }
+            return;
+        }
+        
+        previewContainer.style.display = 'grid';
+        previewContainer.innerHTML = '';
+        if (dropzoneText) {
+            dropzoneText.textContent = `Выбрано изображений: ${selectedImageFiles.length}`;
+        }
+        
+        selectedImageFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'image-preview-thumbnail';
+            
+            const img = document.createElement('img');
+            thumbnail.appendChild(img);
+            
+            const deleteBtn = document.createElement('div');
+            deleteBtn.className = 'image-preview-thumbnail-delete';
+            deleteBtn.innerHTML = '×';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedImageFiles.splice(index, 1);
+                renderImagePreviews();
+            });
+            thumbnail.appendChild(deleteBtn);
+            previewContainer.appendChild(thumbnail);
+            
+            reader.onload = function(e) {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function handleImageFileSelect(input) {
+        if (input.files && input.files.length > 0) {
+            Array.from(input.files).forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    selectedImageFiles.push(file);
+                }
+            });
+            renderImagePreviews();
+        }
+        input.value = '';
+    }
+
+    // Expose handleImageFileSelect to window
+    window.handleImageFileSelect = handleImageFileSelect;
+
     function showImageUpload() {
-    saveSelection();
     document.getElementById('imageUploadDialog').style.display = 'block';
+    initImageDragDrop();
 }
 
 let gridTileFiles = {};
@@ -1769,6 +1949,12 @@ function processImage() {
     if (sizeValue === 'custom') {
         width = document.getElementById('customWidth').value;
         widthUnit = document.getElementById('widthUnit').value;
+        if (widthUnit === 'px' && width && !isNaN(width)) {
+            const maxLimit = window.editorContentWidth || 920;
+            if (parseInt(width) > maxLimit) {
+                width = maxLimit;
+            }
+        }
     } else {
         const sizes = {
             small: { width: 300 },
@@ -1776,9 +1962,15 @@ function processImage() {
             large: { width: 800 }
         };
         width = sizes[sizeValue].width;
+        
+        const maxLimit = window.editorContentWidth || 920;
+        if (width > maxLimit) {
+            width = maxLimit;
+        }
     }
 
     const caption = document.getElementById('imageCaption').value.trim();
+    const noBorderRadius = document.getElementById('noBorderRadius')?.checked || false;
 
     if (imageSource === 'url') {
         const urlInput = document.getElementById('imageUrl').value.trim();
@@ -1788,9 +1980,9 @@ function processImage() {
         }
         const urls = urlInput.split(/[\n,]+/).map(function(s) { return s.trim(); }).filter(Boolean);
         if (urls.length === 1) {
-            insertImage(urls[0], width, '', widthUnit, '', caption);
+            insertImage(urls[0], width, '', widthUnit, '', caption, noBorderRadius);
         } else {
-            insertImagesInGrid(urls, gridLayout, caption);
+            insertImagesInGrid(urls, gridLayout, caption, width, widthUnit, noBorderRadius);
             closeImageDialog();
         }
         return;
@@ -1811,9 +2003,8 @@ function processImage() {
         }
     } else {
         // Стандартная одиночная или множественная загрузка файлов
-        const files = document.getElementById('imageFile').files;
-        if (files.length) {
-            Array.from(files).forEach(file => {
+        if (selectedImageFiles.length) {
+            selectedImageFiles.forEach(file => {
                 formData.append('image[]', file);
             });
             hasFiles = true;
@@ -1837,9 +2028,9 @@ function processImage() {
     .then(data => {
         if (data.success && data.urls) {
             if (data.urls.length === 1 && !data.gridLayout) {
-                insertImage(data.urls[0], width, '', widthUnit, '', caption);
+                insertImage(data.urls[0], width, '', widthUnit, '', caption, noBorderRadius);
             } else {
-                insertImagesInGrid(data.urls, data.gridLayout, caption);
+                insertImagesInGrid(data.urls, data.gridLayout, caption, width, widthUnit, noBorderRadius);
             }
         } else {
             showNotification('Ошибка при загрузке изображений: ' + data.error, 'error');
@@ -1852,23 +2043,26 @@ function processImage() {
     closeImageDialog();
 }
 
-function insertImagesInGrid(urls, layout, caption = '') {
+function insertImagesInGrid(urls, layout, caption = '', width = '', widthUnit = 'px', noBorderRadius = false) {
     let html = '';
+    const radiusStyle = noBorderRadius ? 'border-radius: 0px !important;' : 'border-radius: 8px;';
+    const classAttr = `class="blog-image${noBorderRadius ? ' no-radius' : ''}"`;
     if (layout) {
         const [cols] = layout.split('x').map(Number);
         const className = `grid-container grid-${layout}`;
         
         html += `<div class="${className}" style="display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 10px;">`;
         urls.forEach(url => {
-            html += wrapImageWithHint(`<img src="${url}" style="width: 100%; height: auto;" class="blog-image">`);
+            html += wrapImageWithHint(`<img src="${url}" style="width: 100%; height: auto; display: block; margin: 0; ${radiusStyle}" ${classAttr}>`);
         });
         html += `</div>`;
         if (caption) {
             html += `<div style="text-align: center; margin-top: 8px;"><span class="caption" style="display: block; font-style: italic; font-size: 13px; opacity: 0.7;">${caption}</span></div>`;
         }
     } else {
+        const imgStyle = width ? ` style="width: ${width}${widthUnit}; max-width: 100%; height: auto; display: block; margin: 0; ${radiusStyle}"` : ` style="max-width: 100%; height: auto; display: block; margin: 0; ${radiusStyle}"`;
         urls.forEach(url => {
-            html += wrapImageWithHint(`<img src="${url}" class="blog-image">`, caption);
+            html += wrapImageWithHint(`<img src="${url}"${imgStyle} ${classAttr}>`, caption);
         });
     }
 
@@ -1911,15 +2105,15 @@ function uploadImage(file, width, height, widthUnit, heightUnit, caption) {
 
 function wrapImageWithHint(imgHtml, caption = '') {
     const uniqueId = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    const captionHtml = caption ? `<span class="caption">${caption}</span>` : '';
-    return '<div class="blog-image-align-wrap" style="text-align:left" data-image-id="' + uniqueId + '">' +
-        '<div class="blog-image-wrap">' + imgHtml + captionHtml + '</div></div>';
+    const captionHtml = caption ? `<span class="caption" style="display: block; text-align: center; margin-top: 8px; font-style: italic; font-size: 13px; opacity: 0.7;">${caption}</span>` : '';
+    return '<div class="blog-image-align-wrap" style="text-align:left; display: block; margin: 14px 0; width: 100%; clear: both; position: relative;" data-image-id="' + uniqueId + '">' +
+        '<div class="blog-image-wrap" style="position: relative; display: inline-block; max-width: 100%; vertical-align: top; text-align: center;">' + imgHtml + captionHtml + '</div></div>';
 }
 
 function wrapMediaWithControls(mediaHtml, type = 'video') {
     const uniqueId = type + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    return '<div class="blog-image-align-wrap" style="text-align:left" data-image-id="' + uniqueId + '">' +
-        '<div class="blog-image-wrap" data-media-type="' + type + '">' + mediaHtml + '</div></div>';
+    return '<div class="blog-image-align-wrap" style="text-align:left; display: block; margin: 14px 0; width: 100%; clear: both; position: relative;" data-image-id="' + uniqueId + '">' +
+        '<div class="blog-image-wrap" style="position: relative; display: inline-block; max-width: 100%; vertical-align: top; text-align: center;" data-media-type="' + type + '">' + mediaHtml + '</div></div>';
 }
 
 function wrapExistingEditorImages() {
@@ -1932,7 +2126,7 @@ function wrapExistingEditorImages() {
         el.parentNode.removeChild(el);
     });
     
-    var imgs = ve.querySelectorAll('img.blog-image, img[src], video, audio, iframe');
+    var imgs = ve.querySelectorAll('img.blog-image, img[src], video, audio, iframe, pre.code-block');
     for (var i = 0; i < imgs.length; i++) {
         var img = imgs[i];
         
@@ -1962,6 +2156,11 @@ function wrapExistingEditorImages() {
                 wrap.setAttribute('data-media-type', type);
             }
         }
+        wrap.style.position = 'relative';
+        wrap.style.display = 'inline-block';
+        wrap.style.maxWidth = '100%';
+        wrap.style.verticalAlign = 'top';
+        wrap.style.textAlign = 'center';
         
         // 2. Если нет alignWrap, создаем его
         if (!alignWrap) {
@@ -1971,6 +2170,33 @@ function wrapExistingEditorImages() {
             alignWrap.setAttribute('data-image-id', type + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
             wrap.parentNode.insertBefore(alignWrap, wrap);
             alignWrap.appendChild(wrap);
+        }
+        alignWrap.style.display = 'block';
+        alignWrap.style.margin = '14px 0';
+        alignWrap.style.width = '100%';
+        alignWrap.style.clear = 'both';
+        alignWrap.style.position = 'relative';
+
+        if (type === 'img') {
+            img.style.display = 'block';
+            img.style.maxWidth = '100%';
+            if (!img.style.height || img.style.height === 'initial') {
+                img.style.height = 'auto';
+            }
+            img.style.margin = '0';
+            if (img.classList.contains('no-radius')) {
+                img.style.borderRadius = '0px';
+            } else {
+                img.style.borderRadius = '8px';
+            }
+        } else if (type === 'video') {
+            img.style.display = 'block';
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+        }
+
+        if (type === 'pre') {
+            img.setAttribute('contenteditable', 'false');
         }
     }
 }
@@ -1994,20 +2220,22 @@ function showGlobalMediaOverlay(mediaWrap) {
     overlay.style.display = 'block';
     updateOverlayPosition();
     
-    var innerMedia = mediaWrap.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art');
+    var innerMedia = mediaWrap.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art, pre.code-block');
     var isImg = innerMedia && innerMedia.tagName.toLowerCase() === 'img';
     var isFile = innerMedia && innerMedia.classList.contains('blog-file-button');
     var isAscii = innerMedia && innerMedia.classList.contains('blog-ascii-art');
+    var isCode = innerMedia && innerMedia.tagName.toLowerCase() === 'pre';
+    var isGrid = activeTarget.closest('.grid-container') !== null;
     
     var editBtn = overlay.querySelector('.image-toolbar-btn[data-action="edit"]');
     var resizeBtn = overlay.querySelector('.image-toolbar-btn[data-action="resize"]');
     var sizeIndicator = overlay.querySelector('.image-size-indicator');
     var resizeHandles = overlay.querySelectorAll('.image-resize-handle');
     
-    if (editBtn) editBtn.style.display = (isImg || isAscii) ? 'flex' : 'none';
-    if (resizeBtn) resizeBtn.style.display = (isFile || isAscii) ? 'none' : 'flex';
-    if (sizeIndicator) sizeIndicator.style.display = (isFile || isAscii) ? 'none' : 'block';
-    resizeHandles.forEach(h => h.style.display = (isFile || isAscii) ? 'none' : 'block');
+    if (editBtn) editBtn.style.display = (isImg || isAscii || isCode) ? 'flex' : 'none';
+    if (resizeBtn) resizeBtn.style.display = (isFile || isAscii || isCode || isGrid) ? 'none' : 'flex';
+    if (sizeIndicator) sizeIndicator.style.display = (isFile || isAscii || isCode || isGrid) ? 'none' : 'block';
+    resizeHandles.forEach(h => h.style.display = (isFile || isAscii || isCode || isGrid) ? 'none' : 'block');
     
     var alignWrap = mediaWrap.closest('.blog-image-align-wrap');
     var align = alignWrap ? (alignWrap.style.textAlign || 'left') : 'left';
@@ -2076,6 +2304,11 @@ function showImageResizeDialog(img) {
     
     var newWidth = prompt('Введите новую ширину ' + label + ' (в пикселях):', currentWidth);
     if (newWidth && !isNaN(newWidth) && newWidth > 0) {
+        newWidth = parseInt(newWidth);
+        const maxLimit = window.editorContentWidth || 920;
+        if (newWidth > maxLimit) {
+            newWidth = maxLimit;
+        }
         img.style.width = newWidth + 'px';
         if (isAudio) {
             img.style.height = '';
@@ -2161,22 +2394,24 @@ function initGlobalMediaOverlayDOM() {
                 }
             } else if (action === 'edit') {
                 var img = activeTarget ? activeTarget.querySelector('img') : null;
+                var ascii = activeTarget ? activeTarget.querySelector('.blog-ascii-wrap') : null;
+                var codeBlock = activeTarget ? activeTarget.querySelector('pre.code-block') : null;
                 if (img) {
                     openImageEditorModal(img);
-                } else {
-                    var ascii = activeTarget ? activeTarget.querySelector('.blog-ascii-wrap') : null;
-                    if (ascii) {
-                        openAsciiDrawer(ascii);
-                    }
+                } else if (ascii) {
+                    openAsciiDrawer(ascii);
+                } else if (codeBlock) {
+                    openEditCodeBlockDialog(codeBlock);
                 }
             } else if (action === 'delete') {
-                var innerMedia = activeTarget ? activeTarget.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art') : null;
+                var innerMedia = activeTarget ? activeTarget.querySelector('img, video, audio, iframe, .blog-file-button, .blog-ascii-art, pre.code-block') : null;
                 var isImg = innerMedia && innerMedia.tagName.toLowerCase() === 'img';
                 var isVideo = innerMedia && innerMedia.tagName.toLowerCase() === 'video';
                 var isIframe = innerMedia && innerMedia.tagName.toLowerCase() === 'iframe';
                 var isFile = innerMedia && innerMedia.classList.contains('blog-file-button');
                 var isAscii = innerMedia && innerMedia.classList.contains('blog-ascii-art');
-                var label = isImg ? 'изображение' : (isVideo || isIframe ? 'видео' : (isFile ? 'файл' : (isAscii ? 'ASCII-арт' : 'аудио')));
+                var isCode = innerMedia && innerMedia.tagName.toLowerCase() === 'pre';
+                var label = isImg ? 'изображение' : (isVideo || isIframe ? 'видео' : (isFile ? 'файл' : (isAscii ? 'ASCII-арт' : (isCode ? 'блок кода' : 'аудио'))));
                 
                 var targetToDelete = activeTarget;
                 
@@ -2286,7 +2521,12 @@ document.addEventListener('mousemove', function(e) {
         var isVideo = innerMedia.tagName.toLowerCase() === 'video';
         var newWidth = startWidth + deltaX;
         
-        if (newWidth > 50 && newWidth < 2000) {
+        const maxLimit = window.editorContentWidth || 920;
+        if (newWidth > maxLimit) {
+            newWidth = maxLimit;
+        }
+        
+        if (newWidth > 50 && newWidth <= maxLimit) {
             innerMedia.style.width = newWidth + 'px';
             if (isAudio) {
                 innerMedia.style.height = '';
@@ -2686,10 +2926,21 @@ initImageAlignmentHandlers();
     });
 })();
 
-function insertImage(url, width, height, widthUnit, heightUnit, caption = '') {
-    const imgStyle = `width: ${width}${widthUnit}; ` + 
-                    (height ? `height: ${height}${heightUnit};` : '');
-    const imgTag = wrapImageWithHint(`<img src="${url}" style="${imgStyle}" class="blog-image">`, caption);
+function insertImage(url, width, height, widthUnit, heightUnit, caption = '', noBorderRadius = false) {
+    if (window.enableMarkdown && editorMode === 'code') {
+        const mdImg = `![${caption || 'Изображение'}](${url})`;
+        const ta = document.getElementById('content');
+        const cursorPos = ta.selectionStart;
+        ta.value = ta.value.substring(0, cursorPos) + mdImg + ta.value.substring(cursorPos);
+        saveToHistory();
+        closeImageDialog();
+        return;
+    }
+    const radiusStyle = noBorderRadius ? 'border-radius: 0px !important;' : 'border-radius: 8px;';
+    const imgStyle = `width: ${width}${widthUnit}; max-width: 100%; height: auto; display: block; margin: 0; ` + 
+                    (height ? `height: ${height}${heightUnit};` : '') + radiusStyle;
+    const classAttr = `blog-image${noBorderRadius ? ' no-radius' : ''}`;
+    const imgTag = wrapImageWithHint(`<img src="${url}" style="${imgStyle}" class="${classAttr}">`, caption);
     
     if (editorMode === 'code') {
         const ta = document.getElementById('content');
@@ -2710,12 +2961,24 @@ function closeImageDialog() {
     document.getElementById('customWidth').value = '';
     document.getElementById('customHeight').value = '';
     document.getElementById('gridLayout').value = '';
+    const noRadiusChk = document.getElementById('noBorderRadius');
+    if (noRadiusChk) noRadiusChk.checked = false;
     document.querySelector('input[name="imageSource"][value="file"]').checked = true;
     document.getElementById('fileUploadContainer').style.display = 'block';
     document.getElementById('imageGridPreviewContainer').style.display = 'none';
     document.getElementById('imageGridPreviewContainer').innerHTML = '';
     document.getElementById('urlContainer').style.display = 'none';
     gridTileFiles = {};
+    selectedImageFiles = [];
+    const previewContainer = document.getElementById('imageFilesPreview');
+    if (previewContainer) {
+        previewContainer.style.display = 'none';
+        previewContainer.innerHTML = '';
+    }
+    const dropzoneText = document.getElementById('imageDropzoneText');
+    if (dropzoneText) {
+        dropzoneText.textContent = 'Выберите изображения или перетащите их сюда';
+    }
 }
 
     // Функции для работы с размером шрифта
@@ -2757,11 +3020,164 @@ function closeImageDialog() {
     }
 
     // Функции для работы с медиа
-    function showMediaDialog() {
-        saveSelection();
-        document.getElementById('mediaDialog').style.display = 'block';
+    let isMediaDragDropInitialized = false;
+
+    function initMediaDragDrop() {
+        if (isMediaDragDropInitialized) return;
         
-        // Добавляем обработчики переключения типа медиа
+        const videoDropzone = document.getElementById('videoDropzone');
+        const audioDropzone = document.getElementById('audioDropzone');
+        
+        if (videoDropzone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                videoDropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                videoDropzone.addEventListener(eventName, () => {
+                    videoDropzone.classList.add('drag-over');
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                videoDropzone.addEventListener(eventName, () => {
+                    videoDropzone.classList.remove('drag-over');
+                }, false);
+            });
+            
+            videoDropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files[0]) {
+                    uploadVideoFileDirect(files[0]);
+                }
+            }, false);
+        }
+        
+        if (audioDropzone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                audioDropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                audioDropzone.addEventListener(eventName, () => {
+                    audioDropzone.classList.add('drag-over');
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                audioDropzone.addEventListener(eventName, () => {
+                    audioDropzone.classList.remove('drag-over');
+                }, false);
+            });
+            
+            audioDropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files[0]) {
+                    uploadAudioFileDirect(files[0]);
+                }
+            }, false);
+        }
+        
+        isMediaDragDropInitialized = true;
+    }
+
+    function uploadVideoFileDirect(file) {
+        if (!file) return;
+        if (!file.type.startsWith('video/')) {
+            showNotification('Пожалуйста, выберите видео файл', 'warning');
+            return;
+        }
+        
+        const filenameEl = document.getElementById('videoFileName');
+        if (filenameEl) {
+            filenameEl.textContent = `Загрузка: ${file.name}...`;
+            filenameEl.style.display = 'block';
+        }
+        
+        const formData = new FormData();
+        formData.append('video', file);
+        
+        fetch('upload_video.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Видео файл загружен', 'success');
+                loadVideoFilesList();
+            } else {
+                showNotification('Ошибка: ' + data.error, 'error');
+            }
+            if (filenameEl) filenameEl.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка загрузки файла', 'error');
+            if (filenameEl) filenameEl.style.display = 'none';
+        });
+    }
+
+    function uploadAudioFileDirect(file) {
+        if (!file) return;
+        if (!file.type.startsWith('audio/')) {
+            showNotification('Пожалуйста, выберите аудио файл', 'warning');
+            return;
+        }
+        
+        const filenameEl = document.getElementById('audioFileName');
+        if (filenameEl) {
+            filenameEl.textContent = `Загрузка: ${file.name}...`;
+            filenameEl.style.display = 'block';
+        }
+        
+        const formData = new FormData();
+        formData.append('audio', file);
+        
+        fetch('upload_audio.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Аудио файл загружен', 'success');
+                loadAudioFilesList();
+            } else {
+                showNotification('Ошибка: ' + data.error, 'error');
+            }
+            if (filenameEl) filenameEl.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка загрузки файла', 'error');
+            if (filenameEl) filenameEl.style.display = 'none';
+        });
+    }
+
+    window.handleMediaFileChange = function(input, type) {
+        if (input.files && input.files[0]) {
+            if (type === 'video') {
+                uploadVideoFileDirect(input.files[0]);
+            } else if (type === 'audio') {
+                uploadAudioFileDirect(input.files[0]);
+            }
+        }
+        input.value = '';
+    };
+
+    function showMediaDialog() {
+        document.getElementById('mediaDialog').style.display = 'block';
+        initMediaDragDrop();
+        
         const mediaTypeRadios = document.querySelectorAll('input[name="mediaType"]');
         mediaTypeRadios.forEach(radio => {
             radio.addEventListener('change', function() {
@@ -2797,6 +3213,17 @@ function closeImageDialog() {
         document.getElementById('videoFileSection').style.display = 'none';
         document.getElementById('audioMediaSection').style.display = 'none';
         document.getElementById('audioStreamSection').style.display = 'none';
+        
+        const videoFileName = document.getElementById('videoFileName');
+        if (videoFileName) {
+            videoFileName.textContent = '';
+            videoFileName.style.display = 'none';
+        }
+        const audioFileName = document.getElementById('audioFileName');
+        if (audioFileName) {
+            audioFileName.textContent = '';
+            audioFileName.style.display = 'none';
+        }
     }
 
     function insertMedia() {
@@ -2902,15 +3329,17 @@ function closeImageDialog() {
                 
                 if (data.success && data.files.length > 0) {
                     list.innerHTML = data.files.map(file => `
-                        <div style="padding: 10px 12px; margin-bottom: 8px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
-                             onmouseover="this.style.background='rgba(128,128,128,0.1)'" onmouseout="this.style.background='transparent'"
+                        <div style="padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
+                             onmouseover="this.style.background='rgba(128,128,128,0.06)'" onmouseout="this.style.background='transparent'"
                              onclick="insertAudioFile('${file.path}', '${file.name}')">
                             <div style="min-width: 0; flex: 1; padding-right: 10px;">
                                 <div style="color: var(--text-color); font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🎵 ${file.name}</div>
                                 <div style="color: var(--text-color); opacity: 0.6; font-size: 12px; margin-top: 2px;">${formatFileSize(file.size)}</div>
                             </div>
                             <button onclick="event.stopPropagation(); deleteAudioFile('${file.name}')" 
-                                    class="delete-confirm-btn cancel" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; color: gray; border-color: gray;">
+                                    style="padding: 6px 12px; font-size: 12px; border-radius: 6px; border: 1px solid rgba(220, 53, 69, 0.4); background: transparent; color: #dc3545; cursor: pointer; transition: all 0.2s;"
+                                    onmouseover="this.style.background='rgba(220, 53, 69, 0.1)'; this.style.borderColor='#dc3545'"
+                                    onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(220, 53, 69, 0.4)'">
                                 Удалить
                             </button>
                         </div>
@@ -3061,15 +3490,17 @@ function closeImageDialog() {
                 
                 if (data.success && data.files.length > 0) {
                     list.innerHTML = data.files.map(file => `
-                        <div style="padding: 10px 12px; margin-bottom: 8px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
-                             onmouseover="this.style.background='rgba(128,128,128,0.1)'" onmouseout="this.style.background='transparent'"
+                        <div style="padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
+                             onmouseover="this.style.background='rgba(128,128,128,0.06)'" onmouseout="this.style.background='transparent'"
                              onclick="insertVideoFile('${file.path}', '${file.name}')">
                             <div style="min-width: 0; flex: 1; padding-right: 10px;">
                                 <div style="color: var(--text-color); font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🎬 ${file.name}</div>
                                 <div style="color: var(--text-color); opacity: 0.6; font-size: 12px; margin-top: 2px;">${formatFileSize(file.size)}</div>
                             </div>
                             <button onclick="event.stopPropagation(); deleteVideoFile('${file.name}')" 
-                                    class="delete-confirm-btn cancel" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; color: gray; border-color: gray;">
+                                    style="padding: 6px 12px; font-size: 12px; border-radius: 6px; border: 1px solid rgba(220, 53, 69, 0.4); background: transparent; color: #dc3545; cursor: pointer; transition: all 0.2s;"
+                                    onmouseover="this.style.background='rgba(220, 53, 69, 0.1)'; this.style.borderColor='#dc3545'"
+                                    onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(220, 53, 69, 0.4)'">
                                 Удалить
                             </button>
                         </div>
@@ -3404,14 +3835,36 @@ function extractVimeoId(url) {
     }
 
     // Функции для работы с кодом
+    var editingCodeBlockTarget = null;
+
     function insertCode() {
-        saveSelection();
+        editingCodeBlockTarget = null;
+        const titleEl = document.getElementById('codeDialogTitle');
+        if (titleEl) titleEl.textContent = 'Вставить код';
+        const submitEl = document.getElementById('codeDialogSubmitBtn');
+        if (submitEl) submitEl.textContent = 'Вставить';
+        document.getElementById('codeLanguage').value = 'javascript';
+        document.getElementById('codeInput').value = '';
+        document.getElementById('codeDialog').style.display = 'block';
+    }
+
+    function openEditCodeBlockDialog(codeBlock) {
+        editingCodeBlockTarget = codeBlock;
+        const titleEl = document.getElementById('codeDialogTitle');
+        if (titleEl) titleEl.textContent = 'Редактировать код';
+        const submitEl = document.getElementById('codeDialogSubmitBtn');
+        if (submitEl) submitEl.textContent = 'Сохранить';
+        
+        const lang = codeBlock.getAttribute('data-language') || 'javascript';
+        document.getElementById('codeLanguage').value = lang;
+        document.getElementById('codeInput').value = codeBlock.textContent;
         document.getElementById('codeDialog').style.display = 'block';
     }
 
     function closeCodeDialog() {
         document.getElementById('codeDialog').style.display = 'none';
         document.getElementById('codeInput').value = '';
+        editingCodeBlockTarget = null;
     }
 
     function insertCodeBlock() {
@@ -3428,19 +3881,34 @@ function extractVimeoId(url) {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        const codeBlock = `<pre class="code-block" data-language="${language}">${escapedCode}</pre>`;
-        
-        if (editorMode === 'code') {
-            const ta = document.getElementById('content');
-            const cursorPos = ta.selectionStart;
-            ta.value = ta.value.substring(0, cursorPos) + codeBlock + ta.value.substring(cursorPos);
+        if (editingCodeBlockTarget) {
+            editingCodeBlockTarget.setAttribute('data-language', language);
+            editingCodeBlockTarget.innerHTML = escapedCode;
+            editingCodeBlockTarget.setAttribute('contenteditable', 'false');
+            const wrap = editingCodeBlockTarget.closest('.blog-image-wrap');
+            if (wrap) {
+                wrap.setAttribute('data-media-type', 'pre');
+            }
         } else {
-            insertHtmlAtCaret(codeBlock);
+            if (editorMode === 'code') {
+                const codeBlock = `<pre class="code-block" data-language="${language}">${escapedCode}</pre>\n`;
+                const ta = document.getElementById('content');
+                const cursorPos = ta.selectionStart;
+                ta.value = ta.value.substring(0, cursorPos) + codeBlock + ta.value.substring(cursorPos);
+            } else {
+                const codeBlock = wrapMediaWithControls(`<pre class="code-block" data-language="${language}" contenteditable="false">${escapedCode}</pre>`, 'pre');
+                insertImageBlockAtCaret(codeBlock);
+            }
         }
         
         saveToHistory();
         closeCodeDialog();
     }
+
+    window.insertCode = insertCode;
+    window.insertCodeBlock = insertCodeBlock;
+    window.closeCodeDialog = closeCodeDialog;
+    window.openEditCodeBlockDialog = openEditCodeBlockDialog;
 
     // Функции для управления статьями
     function toggleManagePosts() {
@@ -3460,7 +3928,7 @@ function extractVimeoId(url) {
 
     function loadPosts() {
         // Добавляем timestamp для предотвращения кэширования
-        fetch('data/blog/posts-meta.json?t=' + Date.now())
+        fetch('serve_data.php?file=blog/posts-meta.json&t=' + Date.now())
             .then(response => response.json())
             .then(posts => {
                 const postsList = document.getElementById('postsList');
@@ -3528,16 +3996,69 @@ function extractVimeoId(url) {
             if (data.success) {
                 document.getElementById('title').value = data.title;
 
-                let editedContent = formatHTML(data.content);
-                document.getElementById('content').value = editedContent;
-                const ve = document.getElementById('contentVisual');
-                if (editorMode === 'visual' && ve) {
-                    ve.innerHTML = editedContent;
-                    wrapExistingEditorImages();
-                    addColumnResizers(); // Добавляем ручки изменения размера столбцов
+                let isMarkdown = false;
+                let mdContent = '';
+                if (data.content && data.content.includes('id="markdown-source"')) {
+                    const match = data.content.match(/id="markdown-source"\s+data-base64="([^"]*)"/);
+                    if (match && match[1]) {
+                        try {
+                            mdContent = decodeURIComponent(escape(atob(match[1])));
+                            isMarkdown = true;
+                        } catch (e) {
+                            console.error('Error decoding markdown', e);
+                        }
+                    }
+                }
+
+                if (isMarkdown) {
+                    window.enableMarkdown = true;
+                    document.body.classList.add('markdown-mode');
+                    const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                    if (enableMarkdownCheck) enableMarkdownCheck.checked = true;
                     
+                    document.getElementById('content').value = mdContent;
+                    const ve = document.getElementById('contentVisual');
+                    if (ve) {
+                        ve.contentEditable = 'true';
+                        if (editorMode === 'visual') {
+                            ve.innerHTML = parseMarkdownToHtml(mdContent);
+                        }
+                    }
+                } else {
+                    if (window.enableMarkdown) {
+                        document.getElementById('content').value = data.content || '';
+                        const ve = document.getElementById('contentVisual');
+                        if (ve) {
+                            ve.contentEditable = 'true';
+                            if (editorMode === 'visual') {
+                                ve.innerHTML = parseMarkdownToHtml(data.content || '');
+                            }
+                        }
+                    } else {
+                        window.enableMarkdown = false;
+                        document.body.classList.remove('markdown-mode');
+                        const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                        if (enableMarkdownCheck) enableMarkdownCheck.checked = false;
+                        
+                        let editedContent = formatHTML(data.content);
+                        document.getElementById('content').value = editedContent;
+                        const ve = document.getElementById('contentVisual');
+                        if (ve) {
+                            ve.contentEditable = 'true';
+                            if (editorMode === 'visual') {
+                                ve.innerHTML = editedContent;
+                                wrapExistingEditorImages();
+                                addColumnResizers();
+                            }
+                        }
+                    }
+                }
+
+                if (editorMode === 'visual' && !window.enableMarkdown) {
                     // Убеждаемся что блоки кода имеют правильную высоту
                     setTimeout(() => {
+                        const ve = document.getElementById('contentVisual');
+                        if (!ve) return;
                         const codeBlocks = ve.querySelectorAll('.code-block');
                         codeBlocks.forEach(block => {
                             if (block.scrollHeight > 400) {
@@ -3671,7 +4192,14 @@ function extractVimeoId(url) {
         const ve = document.getElementById('contentVisual');
         
         let content;
-        if (editorMode === 'visual') {
+        if (window.enableMarkdown) {
+            if (editorMode === 'visual') {
+                ta.value = convertHtmlToMarkdown(ve.innerHTML);
+            }
+            const rawMarkdown = ta.value;
+            const base64Markdown = btoa(unescape(encodeURIComponent(rawMarkdown)));
+            content = parseMarkdownToHtml(rawMarkdown) + `\n<script type="text/markdown" id="markdown-source" data-base64="${base64Markdown}"></script>`;
+        } else if (editorMode === 'visual') {
             // Очищаем контент от элементов интерфейса редактора
             content = cleanContentForSave(ve.innerHTML);
             ta.value = content;
@@ -3846,7 +4374,6 @@ function extractVimeoId(url) {
             var customInput = wrap.querySelector('input[type="color"]');
             if (btn) {
                 btn.addEventListener('mousedown', function(e) {
-                    saveSelection();
                     if (editorMode === 'code') {
                         var ta = document.getElementById('content');
                         colorInsertStart = ta.selectionStart;
@@ -3952,7 +4479,6 @@ function extractVimeoId(url) {
             var popover = wrap.querySelector('.font-size-popover-inner');
             if (btn) {
                 btn.addEventListener('mousedown', function() {
-                    saveSelection();
                     if (editorMode === 'code') {
                         var ta = document.getElementById('content');
                         colorInsertStart = ta.selectionStart;
@@ -3990,7 +4516,6 @@ function extractVimeoId(url) {
             var popover = wrap.querySelector('.font-family-popover-inner');
             if (btn) {
                 btn.addEventListener('mousedown', function() {
-                    saveSelection();
                     if (editorMode === 'code') {
                         var ta = document.getElementById('content');
                         colorInsertStart = ta.selectionStart;
@@ -4125,7 +4650,6 @@ function setCustomFontFamily() {
 
 // Подсветка активных кнопок при изменении выделения
 document.addEventListener('selectionchange', function() {
-    if (editorMode === 'visual') saveSelection();
     updateActiveButtons();
 });
 
@@ -4174,8 +4698,7 @@ async function fixIntegrityErrors() {
     }
 }
 
-// Запускаем проверку при загрузке страницы
-window.addEventListener('load', checkIntegrity);
+
 
 // ——— Менеджер бэкапов ———
 async function openBackupManager() {
@@ -4232,12 +4755,12 @@ function renderBackups(backups) {
                             <div class="backup-info">
                                 <div class="backup-number">Бэкап #${backup.backupNumber}</div>
                                 <div class="backup-date">${escapeHtml(backup.date)}</div>
-                                ${isDeleted ? '<div class="backup-date" style="color: #dc3545; font-weight: 600;">Статья удалена: ' + escapeHtml(post.deletedAt || '') + '</div>' : ''}
+                                ${isDeleted ? '<div class="backup-date" style="color: #d32f2f; font-weight: 600; margin-top: 4px;">Статья удалена: ' + escapeHtml(post.deletedAt || '') + '</div>' : ''}
                             </div>
                             <div class="backup-actions">
-                                <button class="backup-btn" onclick="viewBackup('${postId}', '${backup.filename}')">Посмотреть</button>
-                                ${!isDeleted ? `<button class="backup-btn" onclick="restoreBackup('${postId}', '${backup.filename}', ${backup.backupNumber}, '${escapeHtml(backup.date)}')">Восстановить</button>` : ''}
-                                <button class="backup-btn" onclick="openDeleteBackup('${postId}', '${backup.filename}', ${backup.backupNumber})">Удалить</button>
+                                <button class="backup-btn view" onclick="viewBackup('${postId}', '${backup.filename}')">Посмотреть</button>
+                                ${!isDeleted ? `<button class="backup-btn restore" onclick="restoreBackup('${postId}', '${backup.filename}', ${backup.backupNumber}, '${escapeHtml(backup.date)}')">Восстановить</button>` : ''}
+                                <button class="backup-btn delete" onclick="deleteBackup('${postId}', '${backup.filename}', ${backup.backupNumber}, '${escapeHtml(backup.date)}')">Удалить</button>
                             </div>
                         </div>
                     `).join('')}
@@ -4283,74 +4806,43 @@ async function viewBackup(postId, filename) {
 }
 
 // Восстановление бэкапа
-let restoreBackupData = null;
-
 function restoreBackup(postId, filename, backupNumber, backupDate) {
-    restoreBackupData = { postId, filename };
-    
-    const overlay = document.getElementById('restoreBackupOverlay');
-    const infoDiv = document.getElementById('restoreBackupInfo');
-    
-    // Заполняем информацию о бэкапе
-    infoDiv.innerHTML = `
-        <div class="restore-backup-info-item">
-            <span class="restore-backup-info-label">Статья:</span>
-            <span class="restore-backup-info-value">#${postId}</span>
-        </div>
-        <div class="restore-backup-info-item">
-            <span class="restore-backup-info-label">Бэкап:</span>
-            <span class="restore-backup-info-value">#${backupNumber}</span>
-        </div>
-        <div class="restore-backup-info-item">
-            <span class="restore-backup-info-label">Дата создания:</span>
-            <span class="restore-backup-info-value">${backupDate}</span>
-        </div>
-    `;
-    
-    overlay.classList.add('show');
-}
-
-function closeRestoreBackup() {
-    const overlay = document.getElementById('restoreBackupOverlay');
-    overlay.classList.remove('show');
-    restoreBackupData = null;
-}
-
-async function confirmRestoreBackup() {
-    if (!restoreBackupData) return;
-    
-    const btn = event.target;
-    btn.disabled = true;
-    btn.textContent = 'Восстановление...';
-    
-    try {
-        const response = await fetch('restore_backup.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-            },
-            body: JSON.stringify({
-                postId: restoreBackupData.postId,
-                filename: restoreBackupData.filename
-            })
-        });
+    showConfirm(
+        `Вы действительно хотите восстановить статью из бэкапа #${backupNumber} от ${backupDate}? Текущая версия статьи в редакторе будет заменена.`,
+        'Восстановить бэкап?'
+    ).then(async (result) => {
+        if (!result) return;
         
-        const data = await response.json();
+        showNotification('Восстановление бэкапа...', 'info');
         
-        if (data.success) {
-            showNotification('Бэкап успешно восстановлен', 'success');
-            closeRestoreBackup();
-        } else {
-            showNotification('Ошибка: ' + data.error, 'error');
-            btn.disabled = false;
-            btn.textContent = 'Восстановить';
+        try {
+            const response = await fetch('restore_backup.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                },
+                body: JSON.stringify({
+                    postId: postId,
+                    filename: filename
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification('Бэкап успешно восстановлен', 'success');
+                // Закрываем окно менеджера бэкапов
+                closeBackupManager();
+                // Перезагружаем страницу через секунду для отображения восстановленной статьи
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Ошибка: ' + data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка восстановления бэкапа:', error);
+            showNotification('Ошибка при восстановлении бэкапа', 'error');
         }
-    } catch (error) {
-        console.error('Ошибка восстановления бэкапа:', error);
-        showNotification('Ошибка при восстановлении бэкапа', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Восстановить';
-    }
+    });
 }
 
 function escapeHtml(text) {
@@ -4360,61 +4852,49 @@ function escapeHtml(text) {
 }
 
 // Удаление бэкапа
-let deleteBackupData = null;
-
-function openDeleteBackup(postId, filename, backupNumber) {
-    deleteBackupData = { postId, filename, backupNumber };
-    
-    const overlay = document.getElementById('deleteBackupOverlay');
-    const input = document.getElementById('deleteBackupConfirmInput');
-    const btn = document.getElementById('confirmDeleteBackupBtn');
-    
-    input.value = '';
-    btn.disabled = true;
-    
-    overlay.classList.add('show');
-    
-    setTimeout(() => input.focus(), 100);
-}
-
-function closeDeleteBackup() {
-    const overlay = document.getElementById('deleteBackupOverlay');
-    overlay.classList.remove('show');
-    deleteBackupData = null;
-}
-
-// Проверка ввода для активации кнопки удаления
-document.addEventListener('DOMContentLoaded', function() {
-    const input = document.getElementById('deleteBackupConfirmInput');
-    const btn = document.getElementById('confirmDeleteBackupBtn');
-    
-    if (input && btn) {
-        input.addEventListener('input', function() {
-            btn.disabled = input.value.trim() !== 'УДАЛИТЬ';
-        });
+function deleteBackup(postId, filename, backupNumber, backupDate) {
+    showConfirm(
+        `Вы действительно хотите окончательно удалить бэкап #${backupNumber} от ${backupDate}? Это действие необратимо.`,
+        'Удалить бэкап?'
+    ).then(async (result) => {
+        if (!result) return;
         
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && input.value.trim() === 'УДАЛИТЬ') {
-                openFinalDeleteConfirm();
+        showNotification('Удаление бэкапа...', 'info');
+        
+        try {
+            const response = await fetch('delete_backup.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                },
+                body: JSON.stringify({
+                    postId: postId,
+                    filename: filename
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification('Бэкап успешно удален', 'success');
+                // Обновляем список бэкапов в окне менеджера
+                openBackupManager();
+            } else {
+                showNotification('Ошибка: ' + data.error, 'error');
             }
-        });
-    }
-    
+        } catch (error) {
+            console.error('Ошибка удаления бэкапа:', error);
+            showNotification('Ошибка при удалении бэкапа', 'error');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
     // Обработчик для сохранения состояния галочки "Вставить как гиперссылку"
     const insertAsHyperlinkCheckbox = document.getElementById('insertAsHyperlink');
     if (insertAsHyperlinkCheckbox) {
         insertAsHyperlinkCheckbox.addEventListener('change', function() {
             localStorage.setItem('insertAsHyperlink', this.checked);
-        });
-    }
-    
-    // Проверка чекбокса для финального подтверждения
-    const checkbox = document.getElementById('finalDeleteCheckbox');
-    const finalBtn = document.getElementById('finalDeleteBtn');
-    
-    if (checkbox && finalBtn) {
-        checkbox.addEventListener('change', function() {
-            finalBtn.disabled = !checkbox.checked;
         });
     }
     
@@ -4427,77 +4907,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Применяем экспериментальные настройки
     applyExperimentalSettings();
 });
-
-function openFinalDeleteConfirm() {
-    // Закрываем первое окно
-    const firstOverlay = document.getElementById('deleteBackupOverlay');
-    firstOverlay.classList.remove('show');
-    
-    // Открываем финальное окно
-    const finalOverlay = document.getElementById('finalDeleteOverlay');
-    const checkbox = document.getElementById('finalDeleteCheckbox');
-    const btn = document.getElementById('finalDeleteBtn');
-    
-    checkbox.checked = false;
-    btn.disabled = true;
-    
-    finalOverlay.classList.add('show');
-}
-
-function closeFinalDelete() {
-    const overlay = document.getElementById('finalDeleteOverlay');
-    overlay.classList.remove('show');
-    
-    // Возвращаемся к первому окну
-    const firstOverlay = document.getElementById('deleteBackupOverlay');
-    firstOverlay.classList.add('show');
-}
-
-async function executeFinalDelete() {
-    if (!deleteBackupData) return;
-    
-    const btn = document.getElementById('finalDeleteBtn');
-    btn.disabled = true;
-    btn.textContent = 'Удаление...';
-    
-    try {
-        const response = await fetch('delete_backup.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-            },
-            body: JSON.stringify({
-                postId: deleteBackupData.postId,
-                filename: deleteBackupData.filename
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Бэкап успешно удален', 'success');
-            
-            // Закрываем финальное окно
-            const finalOverlay = document.getElementById('finalDeleteOverlay');
-            finalOverlay.classList.remove('show');
-            
-            // Закрываем первое окно
-            closeDeleteBackup();
-            
-            // Перезагружаем список бэкапов
-            openBackupManager();
-        } else {
-            showNotification('Ошибка: ' + data.error, 'error');
-            btn.disabled = false;
-            btn.textContent = 'УДАЛИТЬ НАВСЕГДА';
-        }
-    } catch (error) {
-        console.error('Ошибка удаления бэкапа:', error);
-        showNotification('Ошибка при удалении бэкапа', 'error');
-        btn.disabled = false;
-        btn.textContent = 'УДАЛИТЬ НАВСЕГДА';
-    }
-}
 
 // ——— Система includes ———
 function openSaveInclude() {
@@ -4587,9 +4996,20 @@ let draftsListLoaded = false;
 // Функции для работы с черновиками
 function saveDraft() {
     const title = document.getElementById('title').value.trim();
-    const content = editorMode === 'visual' 
+    let content = editorMode === 'visual' 
         ? document.getElementById('contentVisual').innerHTML 
         : document.getElementById('content').value;
+    
+    if (window.enableMarkdown) {
+        if (editorMode === 'visual') {
+            document.getElementById('content').value = convertHtmlToMarkdown(document.getElementById('contentVisual').innerHTML);
+        }
+        const rawMarkdown = document.getElementById('content').value;
+        const base64Markdown = btoa(unescape(encodeURIComponent(rawMarkdown)));
+        content = parseMarkdownToHtml(rawMarkdown) + `\n<script type="text/markdown" id="markdown-source" data-base64="${base64Markdown}"></script>`;
+    } else if (editorMode === 'visual') {
+        content = cleanContentForSave(content);
+    }
     
     if (!title && !content) {
         showAlert('Нечего сохранять в черновик');
@@ -4688,19 +5108,68 @@ async function loadDraft(filename) {
         if (data.success) {
             const draft = data.drafts.find(d => d.filename === filename);
             
-            if (draft) {
-                // Вставляем заголовок и контент
-                document.getElementById('title').value = draft.title || '';
-                
-                if (editorMode === 'visual') {
-                    document.getElementById('contentVisual').innerHTML = draft.content || '';
-                } else {
-                    document.getElementById('content').value = draft.content || '';
-                }
-                
-                // Закрываем меню
-                const moreMenu = document.getElementById('moreMenuWrap');
-                if (moreMenu) moreMenu.classList.remove('is-open');
+                if (draft) {
+                    // Вставляем заголовок и контент
+                    document.getElementById('title').value = draft.title || '';
+                    
+                    let isMarkdown = false;
+                    let mdContent = '';
+                    if (draft.content && draft.content.includes('id="markdown-source"')) {
+                        const match = draft.content.match(/id="markdown-source"\s+data-base64="([^"]*)"/);
+                        if (match && match[1]) {
+                            try {
+                                mdContent = decodeURIComponent(escape(atob(match[1])));
+                                isMarkdown = true;
+                            } catch (e) {
+                                console.error('Error decoding markdown', e);
+                            }
+                        }
+                    }
+                    
+                    if (isMarkdown) {
+                        window.enableMarkdown = true;
+                        document.body.classList.add('markdown-mode');
+                        const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                        if (enableMarkdownCheck) enableMarkdownCheck.checked = true;
+                        
+                        document.getElementById('content').value = mdContent;
+                        const ve = document.getElementById('contentVisual');
+                        if (ve) {
+                            ve.contentEditable = 'true';
+                            if (editorMode === 'visual') {
+                                ve.innerHTML = parseMarkdownToHtml(mdContent);
+                            }
+                        }
+                    } else {
+                        if (window.enableMarkdown) {
+                            document.getElementById('content').value = draft.content || '';
+                            const ve = document.getElementById('contentVisual');
+                            if (ve) {
+                                ve.contentEditable = 'true';
+                                if (editorMode === 'visual') {
+                                    ve.innerHTML = parseMarkdownToHtml(draft.content || '');
+                                }
+                            }
+                        } else {
+                            window.enableMarkdown = false;
+                            document.body.classList.remove('markdown-mode');
+                            const enableMarkdownCheck = document.getElementById('enableMarkdown');
+                            if (enableMarkdownCheck) enableMarkdownCheck.checked = false;
+                            
+                            document.getElementById('content').value = draft.content || '';
+                            const ve = document.getElementById('contentVisual');
+                            if (ve) {
+                                ve.contentEditable = 'true';
+                                if (editorMode === 'visual') {
+                                    ve.innerHTML = draft.content || '';
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Закрываем меню
+                    const moreMenu = document.getElementById('moreMenuWrap');
+                    if (moreMenu) moreMenu.classList.remove('is-open');
                 
                 showNotification('Черновик загружен', 'success');
             } else {
@@ -4841,13 +5310,7 @@ async function insertInclude(filename) {
             const ta = document.getElementById('content');
             
             if (editorMode === 'visual') {
-                if (savedRange) {
-                    const sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(savedRange);
-                }
                 insertHtmlAtCursor(data.content);
-                saveSelection();
             } else {
                 const start = ta.selectionStart;
                 const end = ta.selectionEnd;
@@ -4896,7 +5359,7 @@ async function loadArticlesList() {
     if (!submenu) return;
     
     try {
-        const response = await fetch('data/blog/posts-meta.json?t=' + Date.now());
+        const response = await fetch('serve_data.php?file=blog/posts-meta.json&t=' + Date.now());
         const articles = await response.json();
         
         if (articles.length === 0) {
@@ -4921,13 +5384,7 @@ function insertArticleLink(filename, title) {
     const linkHtml = `<a href="${filename}">${title}</a>`;
     
     if (editorMode === 'visual') {
-        if (savedRange) {
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(savedRange);
-        }
         insertHtmlAtCursor(linkHtml);
-        saveSelection();
     } else {
         const start = ta.selectionStart;
         const end = ta.selectionEnd;
@@ -5150,7 +5607,7 @@ const tutorialSteps = [
     },
     {
         title: "☰ Главное меню (Настройки)",
-        text: "Важный раздел! Здесь находятся Управление статьями, Глобальные параметры (например, фоны), Менеджер бэкапов и смена темы.",
+        text: "Важный раздел! Здесь находятся Управление статьями, Параметры (например, фоны), Менеджер бэкапов и смена темы.",
         element: "#editorMenuBtn"
     },
     {
@@ -5336,11 +5793,10 @@ window.addEventListener('load', function() {
 // ——— Функции для загрузки файлов ———
 
 function openFileUploadDialog() {
-    // Сохраняем текущую позицию курсора
-    if (typeof saveSelection === 'function') {
-        saveSelection();
-    }
     document.getElementById('fileUploadDialog').style.display = 'block';
+    
+    // Инициализируем Drag & Drop
+    initDragDrop();
     
     // Загружаем сохраненное состояние галочки из localStorage
     const savedState = localStorage.getItem('insertAsHyperlink');
@@ -5352,9 +5808,67 @@ function openFileUploadDialog() {
     closeMoreMenu();
 }
 
+let isDragDropInitialized = false;
+
+function initDragDrop() {
+    if (isDragDropInitialized) return;
+    const dropzone = document.getElementById('fileDropzone');
+    if (!dropzone) return;
+    
+    // Предотвращаем дефолтное поведение для drag events
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // Подсветка зоны при перетаскивании
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => {
+            dropzone.classList.add('drag-over');
+        }, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => {
+            dropzone.classList.remove('drag-over');
+        }, false);
+    });
+    
+    // Обработка сброшенного файла
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+            const fileNameEl = document.getElementById('documentFileName');
+            if (fileNameEl) {
+                fileNameEl.textContent = files[0].name;
+                fileNameEl.style.display = 'block';
+            }
+            uploadDocument(files[0]);
+        }
+    }, false);
+    
+    isDragDropInitialized = true;
+}
+
+function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const fileNameEl = document.getElementById('documentFileName');
+        if (fileNameEl) {
+            fileNameEl.textContent = file.name;
+            fileNameEl.style.display = 'block';
+        }
+        uploadDocument(file);
+    }
+}
+
 function closeFileUploadDialog() {
     document.getElementById('fileUploadDialog').style.display = 'none';
-    // Не сбрасываем галочку, чтобы сохранить состояние
 }
 
 function closeMoreMenu() {
@@ -5386,33 +5900,102 @@ function loadDocumentsList() {
                     
                     const info = document.createElement('div');
                     info.className = 'file-upload-item-info';
-                    info.onclick = () => insertFileButton(file.name, file.path, file.size);
+                    info.onclick = () => insertFileButton(file.name, file.url, file.size);
                     
-                    const nameDiv = document.createElement('div');
-                    nameDiv.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    let icon = '📄';
+                    let iconBg = 'rgba(96, 125, 139, 0.1)';
+                    let iconColor = 'rgb(96, 125, 139)';
+                    
+                    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
+                        icon = '🖼️';
+                        iconBg = 'rgba(76, 175, 80, 0.1)';
+                        iconColor = 'rgb(76, 175, 80)';
+                    } else if (['mp3', 'wav', 'ogg'].includes(ext)) {
+                        icon = '🎵';
+                        iconBg = 'rgba(244, 67, 54, 0.1)';
+                        iconColor = 'rgb(244, 67, 54)';
+                    } else if (['mp4', 'webm', 'avi', 'mov'].includes(ext)) {
+                        icon = '🎥';
+                        iconBg = 'rgba(156, 39, 176, 0.1)';
+                        iconColor = 'rgb(156, 39, 176)';
+                    } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+                        icon = '📦';
+                        iconBg = 'rgba(255, 152, 0, 0.1)';
+                        iconColor = 'rgb(255, 152, 0)';
+                    } else if (['pdf'].includes(ext)) {
+                        icon = '📕';
+                        iconBg = 'rgba(229, 57, 53, 0.1)';
+                        iconColor = 'rgb(229, 57, 53)';
+                    } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+                        icon = '📝';
+                        iconBg = 'rgba(0, 150, 136, 0.1)';
+                        iconColor = 'rgb(0, 150, 136)';
+                    } else if (['html', 'css', 'js', 'php', 'json', 'py', 'sh'].includes(ext)) {
+                        icon = '💻';
+                        iconBg = 'rgba(33, 150, 243, 0.1)';
+                        iconColor = 'rgb(33, 150, 243)';
+                    }
+
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'file-upload-item-icon';
+                    iconSpan.style.background = iconBg;
+                    iconSpan.style.color = iconColor;
+                    iconSpan.textContent = icon;
+                    info.appendChild(iconSpan);
+                    
+                    const textDiv = document.createElement('div');
+                    textDiv.className = 'file-upload-item-text';
                     
                     const name = document.createElement('div');
                     name.className = 'file-upload-item-name';
                     name.textContent = file.name;
+                    name.title = file.name;
                     
-                    const size = document.createElement('div');
-                    size.className = 'file-upload-item-size';
-                    size.textContent = formatFileSize(file.size);
+                    const meta = document.createElement('div');
+                    meta.className = 'file-upload-item-meta';
                     
-                    nameDiv.appendChild(name);
-                    nameDiv.appendChild(size);
-                    info.appendChild(nameDiv);
+                    const formattedSize = formatFileSize(file.size);
+                    const formattedDate = file.mtime ? new Date(file.mtime * 1000).toLocaleString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : '';
+                    
+                    meta.textContent = formattedSize + (formattedDate ? ' • ' + formattedDate : '');
+                    
+                    textDiv.appendChild(name);
+                    textDiv.appendChild(meta);
+                    info.appendChild(textDiv);
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'file-upload-item-actions';
+                    
+                    const insertBtn = document.createElement('button');
+                    insertBtn.type = 'button';
+                    insertBtn.className = 'file-upload-item-btn insert';
+                    insertBtn.textContent = 'Вставить';
+                    insertBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        insertFileButton(file.name, file.url, file.size);
+                    };
                     
                     const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'file-upload-item-delete';
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'file-upload-item-btn delete';
                     deleteBtn.textContent = 'Удалить';
                     deleteBtn.onclick = (e) => {
                         e.stopPropagation();
                         deleteDocument(file.path);
                     };
                     
+                    actionsDiv.appendChild(insertBtn);
+                    actionsDiv.appendChild(deleteBtn);
+                    
                     item.appendChild(info);
-                    item.appendChild(deleteBtn);
+                    item.appendChild(actionsDiv);
                     listContainer.appendChild(item);
                 });
             } else {
@@ -5425,13 +6008,22 @@ function loadDocumentsList() {
         });
 }
 
-function uploadDocument() {
+function uploadDocument(fileToUpload = null) {
     const fileInput = document.getElementById('documentFile');
-    const file = fileInput.files[0];
+    const file = fileToUpload || (fileInput ? fileInput.files[0] : null);
     
     if (!file) {
         showNotification('Выберите файл для загрузки', 'error');
         return;
+    }
+    
+    // Отображаем анимацию загрузки в зоне
+    const dropzone = document.getElementById('fileDropzone');
+    const dropzoneText = dropzone ? dropzone.querySelector('.dropzone-text') : null;
+    let originalText = '';
+    if (dropzoneText) {
+        originalText = dropzoneText.textContent;
+        dropzoneText.innerHTML = `<span class="loading-spinner"></span> Загрузка "${file.name}"...`;
     }
     
     const formData = new FormData();
@@ -5443,44 +6035,54 @@ function uploadDocument() {
     })
     .then(response => response.json())
     .then(data => {
+        if (dropzoneText) {
+            dropzoneText.textContent = originalText;
+        }
         if (data.success) {
             showNotification('Файл успешно загружен', 'success');
-            fileInput.value = '';
+            if (fileInput) fileInput.value = '';
+            const fileNameEl = document.getElementById('documentFileName');
+            if (fileNameEl) {
+                fileNameEl.textContent = 'Файл не выбран';
+            }
             loadDocumentsList();
         } else {
             showNotification('Ошибка загрузки: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
     })
     .catch(error => {
+        if (dropzoneText) {
+            dropzoneText.textContent = originalText;
+        }
         console.error('Ошибка:', error);
         showNotification('Ошибка загрузки файла', 'error');
     });
 }
 
 function deleteDocument(filePath) {
-    if (!confirm('Удалить этот файл?')) {
-        return;
-    }
-    
-    fetch('delete_document.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ filePath: filePath })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Файл удален', 'success');
-            loadDocumentsList();
-        } else {
-            showNotification('Ошибка удаления: ' + (data.error || 'Неизвестная ошибка'), 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Ошибка:', error);
-        showNotification('Ошибка удаления файла', 'error');
+    showConfirm('Удалить этот файл?', 'Подтверждение удаления').then(result => {
+        if (!result) return;
+        
+        fetch('delete_document.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filePath: filePath })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Файл удален', 'success');
+                loadDocumentsList();
+            } else {
+                showNotification('Ошибка удаления: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка удаления файла', 'error');
+        });
     });
 }
 
@@ -6386,3 +6988,1150 @@ window.applyCustomAsciiGridSize = applyCustomAsciiGridSize;
 window.fitAsciiGridToContainer = fitAsciiGridToContainer;
 window.nextAsciiPage = nextAsciiPage;
 window.prevAsciiPage = prevAsciiPage;
+
+// --- Плавная печать (мягкий курсор) ---
+let caretTimeout = null;
+let caretScrollListener = null;
+
+function applySmoothTypingState() {
+    const editor = document.getElementById('contentVisual');
+    if (!editor) return;
+    
+    let caret = document.getElementById('customCaret');
+    
+    if (window.smoothTypingEnabled) {
+        editor.classList.add('smooth-typing');
+        
+        if (!caret) {
+            caret = document.createElement('div');
+            caret.id = 'customCaret';
+            document.body.appendChild(caret);
+        }
+        
+        if (!window.smoothTypingListenersAdded) {
+            document.addEventListener('selectionchange', handleCaretUpdate);
+            
+            caretScrollListener = () => {
+                requestAnimationFrame(updateCustomCaret);
+            };
+            editor.addEventListener('scroll', caretScrollListener);
+            window.addEventListener('resize', caretScrollListener);
+            
+            editor.addEventListener('focus', handleCaretUpdate);
+            editor.addEventListener('blur', handleCaretBlur);
+            
+            window.smoothTypingListenersAdded = true;
+        }
+        
+        updateCustomCaret();
+    } else {
+        editor.classList.remove('smooth-typing');
+        if (caret) {
+            caret.style.display = 'none';
+        }
+        
+        if (window.smoothTypingListenersAdded) {
+            document.removeEventListener('selectionchange', handleCaretUpdate);
+            if (caretScrollListener) {
+                editor.removeEventListener('scroll', caretScrollListener);
+                window.removeEventListener('resize', caretScrollListener);
+            }
+            editor.removeEventListener('focus', handleCaretUpdate);
+            editor.removeEventListener('blur', handleCaretBlur);
+            window.smoothTypingListenersAdded = false;
+        }
+    }
+}
+
+function handleCaretBlur() {
+    setTimeout(() => {
+        const editor = document.getElementById('contentVisual');
+        if (document.activeElement !== editor) {
+            const caret = document.getElementById('customCaret');
+            if (caret) caret.style.display = 'none';
+        }
+    }, 100);
+}
+
+function handleCaretUpdate() {
+    updateCustomCaret();
+}
+
+function getCaretCoordinates() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    
+    const range = sel.getRangeAt(0);
+    let rect = null;
+    
+    try {
+        rect = range.getBoundingClientRect();
+    } catch(e) {}
+    
+    if (rect && rect.height > 0 && rect.left > 0) {
+        return rect;
+    }
+    
+    try {
+        const rects = range.getClientRects();
+        if (rects && rects.length > 0 && rects[0].height > 0) {
+            return rects[0];
+        }
+    } catch(e) {}
+    
+    let node = range.startContainer;
+    let offset = range.startOffset;
+    
+    if (!node) return null;
+    
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.childNodes.length > 0 && offset < node.childNodes.length) {
+            let child = node.childNodes[offset];
+            if (child && child.nodeType === Node.ELEMENT_NODE) {
+                try {
+                    return child.getBoundingClientRect();
+                } catch(e) {}
+            }
+        }
+        try {
+            const nodeRect = node.getBoundingClientRect();
+            const style = window.getComputedStyle(node);
+            const padLeft = parseFloat(style.paddingLeft) || 0;
+            const padTop = parseFloat(style.paddingTop) || 0;
+            const lineH = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2 || 20;
+            return {
+                left: nodeRect.left + padLeft,
+                top: nodeRect.top + padTop,
+                height: lineH
+            };
+        } catch(e) {}
+    } else if (node.nodeType === Node.TEXT_NODE) {
+        let parent = node.parentNode;
+        if (parent) {
+            try {
+                const parentRect = parent.getBoundingClientRect();
+                const style = window.getComputedStyle(parent);
+                const lineH = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2 || 20;
+                return {
+                    left: parentRect.left,
+                    top: parentRect.top,
+                    height: lineH
+                };
+            } catch(e) {}
+        }
+    }
+    
+    return null;
+}
+
+function updateCustomCaret() {
+    const editor = document.getElementById('contentVisual');
+    const caret = document.getElementById('customCaret');
+    if (!editor || !caret || !window.smoothTypingEnabled) return;
+    
+    if (document.activeElement !== editor) {
+        caret.style.display = 'none';
+        return;
+    }
+    
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        caret.style.display = 'none';
+        return;
+    }
+    
+    const rect = getCaretCoordinates();
+    if (rect && rect.height > 0) {
+        const editorRect = editor.getBoundingClientRect();
+        
+        if (rect.top >= editorRect.top - 5 && rect.bottom <= editorRect.bottom + 5 &&
+            rect.left >= editorRect.left - 5 && rect.left <= editorRect.right + 5) {
+            
+            caret.style.left = `${rect.left}px`;
+            caret.style.top = `${rect.top}px`;
+            caret.style.height = `${rect.height}px`;
+            caret.style.display = 'block';
+            
+            caret.classList.remove('blink');
+            void caret.offsetWidth;
+            
+            clearTimeout(caretTimeout);
+            caretTimeout = setTimeout(() => {
+                caret.classList.add('blink');
+            }, 500);
+        } else {
+            caret.style.display = 'none';
+        }
+    } else {
+        caret.style.display = 'none';
+    }
+}
+
+window.applySmoothTypingState = applySmoothTypingState;
+
+// --- Markdown to HTML Dynamic Compiler ---
+function parseMarkdownToHtml(md) {
+    if (!md) return '';
+    let html = md;
+    html = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 1. Code blocks (```lang ... ```)
+    const codeBlocks = [];
+    html = html.replace(/```([\s\S]*?)```/g, (match, codeContent) => {
+        const lines = codeContent.split('\n');
+        let lang = '';
+        if (lines[0] && !lines[0].includes(' ') && lines[0].trim().length > 0) {
+            lang = lines[0].trim();
+            lines.shift();
+        }
+        const code = lines.join('\n');
+        const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const placeholder = `__CODEBLOCK_PLACEHOLDER_${codeBlocks.length}__`;
+        codeBlocks.push(`<pre><code class="${lang ? 'language-' + lang : ''}">${escapedCode}</code></pre>`);
+        return placeholder;
+    });
+
+    // 2. Inline code (`code`)
+    const inlineCodes = [];
+    html = html.replace(/`([^`\n]+)`/g, (match, code) => {
+        const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const placeholder = `__INLINECODE_PLACEHOLDER_${inlineCodes.length}__`;
+        inlineCodes.push(`<code>${escapedCode}</code>`);
+        return placeholder;
+    });
+
+    // 3. Block elements (line by line)
+    let lines = html.split('\n');
+    let inList = false;
+    let listType = ''; // 'ul' or 'ol'
+    let listItems = [];
+    let newLines = [];
+
+    const flushList = () => {
+        if (inList) {
+            let listHtml = `<${listType}>` + listItems.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + `</${listType}>`;
+            newLines.push(listHtml);
+            inList = false;
+            listItems = [];
+        }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        
+        // Headers
+        let headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+        if (headerMatch) {
+            flushList();
+            let level = headerMatch[1].length;
+            let text = headerMatch[2];
+            newLines.push(`<h${level}>${parseInlineMarkdown(text)}</h${level}>`);
+            continue;
+        }
+
+        // Blockquote
+        let bqMatch = line.match(/^>\s*(.*)$/);
+        if (bqMatch) {
+            flushList();
+            let text = bqMatch[1];
+            newLines.push(`<blockquote>${parseInlineMarkdown(text)}</blockquote>`);
+            continue;
+        }
+
+        // Unordered List
+        let ulMatch = line.match(/^[\*\-\+]\s+(.*)$/);
+        if (ulMatch) {
+            if (inList && listType !== 'ul') {
+                flushList();
+            }
+            inList = true;
+            listType = 'ul';
+            listItems.push(ulMatch[1]);
+            continue;
+        }
+
+        // Ordered List
+        let olMatch = line.match(/^(\d+)\.\s+(.*)$/);
+        if (olMatch) {
+            if (inList && listType !== 'ol') {
+                flushList();
+            }
+            inList = true;
+            listType = 'ol';
+            listItems.push(olMatch[2]);
+            continue;
+        }
+
+        // Table
+        if (line.trim().startsWith('|')) {
+            flushList();
+            let isTable = false;
+            if (i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && lines[i + 1].includes('-')) {
+                isTable = true;
+            }
+            if (isTable) {
+                let tableLines = [];
+                while (i < lines.length && lines[i].trim().startsWith('|')) {
+                    tableLines.push(lines[i]);
+                    i++;
+                }
+                i--;
+                
+                let tableHtml = '<table>';
+                let headers = tableLines[0].split('|').map(x => x.trim()).filter((x, idx, arr) => idx > 0 && idx < arr.length - 1);
+                tableHtml += '<thead><tr>' + headers.map(h => `<th>${parseInlineMarkdown(h)}</th>`).join('') + '</tr></thead>';
+                tableHtml += '<tbody>';
+                for (let j = 2; j < tableLines.length; j++) {
+                    let cells = tableLines[j].split('|').map(x => x.trim()).filter((x, idx, arr) => idx > 0 && idx < arr.length - 1);
+                    tableHtml += '<tr>' + cells.map(c => `<td>${parseInlineMarkdown(c)}</td>`).join('') + '</tr>';
+                }
+                tableHtml += '</tbody></table>';
+                newLines.push(tableHtml);
+                continue;
+            }
+        }
+
+        // Empty line
+        if (line.trim() === '') {
+            flushList();
+            newLines.push('');
+            continue;
+        }
+
+        if (inList) {
+            listItems[listItems.length - 1] += '\n' + line;
+        } else {
+            newLines.push(parseInlineMarkdown(line));
+        }
+    }
+    flushList();
+
+    let finalHtml = '';
+    let pContent = [];
+    for (let line of newLines) {
+        if (line.trim() === '') {
+            if (pContent.length > 0) {
+                finalHtml += `<p>${pContent.join('<br>')}</p>\n`;
+                pContent = [];
+            }
+        } else if (line.startsWith('<h') || line.startsWith('<pre') || line.startsWith('<blockquote') || line.startsWith('<ul') || line.startsWith('<ol') || line.startsWith('<table') || line.startsWith('<details')) {
+            if (pContent.length > 0) {
+                finalHtml += `<p>${pContent.join('<br>')}</p>\n`;
+                pContent = [];
+            }
+            finalHtml += line + '\n';
+        } else {
+            pContent.push(line);
+        }
+    }
+    if (pContent.length > 0) {
+        finalHtml += `<p>${pContent.join('<br>')}</p>\n`;
+    }
+
+    finalHtml = finalHtml.replace(/__INLINECODE_PLACEHOLDER_(\d+)__/g, (match, idx) => {
+        return inlineCodes[parseInt(idx)];
+    });
+    finalHtml = finalHtml.replace(/__CODEBLOCK_PLACEHOLDER_(\d+)__/g, (match, idx) => {
+        return codeBlocks[parseInt(idx)];
+    });
+
+    return finalHtml;
+}
+
+function parseInlineMarkdown(text) {
+    let html = text;
+    html = html.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__([\s\S]*?)__/g, '<strong>$1</strong>');
+    html = html.replace(/\*([\s\S]*?)\*/g, '<em>$1</em>');
+    html = html.replace(/_([\s\S]*?)_/g, '<em>$1</em>');
+    html = html.replace(/~~([\s\S]*?)~~/g, '<del>$1</del>');
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="blog-image">');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    return html;
+}
+
+window.parseMarkdownToHtml = parseMarkdownToHtml;
+
+function convertHtmlToMarkdown(html) {
+    if (!html) return '';
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return nodeToMarkdown(temp).trim();
+}
+
+function nodeToMarkdown(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+    }
+    
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+    }
+    
+    const tagName = node.tagName.toUpperCase();
+    let childrenMarkdown = '';
+    
+    // Process children
+    for (let child of node.childNodes) {
+        childrenMarkdown += nodeToMarkdown(child);
+    }
+    
+    switch (tagName) {
+        case 'DIV':
+            if (node.classList.contains('spoiler-content')) {
+                return childrenMarkdown;
+            }
+            return childrenMarkdown + '\n';
+        case 'P':
+            return childrenMarkdown.trim() ? '\n\n' + childrenMarkdown.trim() + '\n\n' : '';
+        case 'BR':
+            return '\n';
+        case 'STRONG':
+        case 'B':
+            return childrenMarkdown.trim() ? `**${childrenMarkdown.trim()}**` : '';
+        case 'EM':
+        case 'I':
+            return childrenMarkdown.trim() ? `*${childrenMarkdown.trim()}*` : '';
+        case 'DEL':
+        case 'S':
+            return childrenMarkdown.trim() ? `~~${childrenMarkdown.trim()}~~` : '';
+        case 'H1':
+            return `\n# ${childrenMarkdown.trim()}\n`;
+        case 'H2':
+            return `\n## ${childrenMarkdown.trim()}\n`;
+        case 'H3':
+            return `\n### ${childrenMarkdown.trim()}\n`;
+        case 'H4':
+            return `\n#### ${childrenMarkdown.trim()}\n`;
+        case 'H5':
+            return `\n##### ${childrenMarkdown.trim()}\n`;
+        case 'H6':
+            return `\n###### ${childrenMarkdown.trim()}\n`;
+        case 'BLOCKQUOTE':
+            const lines = childrenMarkdown.trim().split('\n');
+            return '\n' + lines.map(line => `> ${line}`).join('\n') + '\n';
+        case 'UL':
+            return '\n' + childrenMarkdown + '\n';
+        case 'OL':
+            let olMarkdown = '\n';
+            let index = 1;
+            for (let child of node.childNodes) {
+                if (child.nodeType === Node.ELEMENT_NODE && child.tagName.toUpperCase() === 'LI') {
+                    olMarkdown += `${index}. ${nodeToMarkdown(child).trim()}\n`;
+                    index++;
+                } else {
+                    olMarkdown += nodeToMarkdown(child);
+                }
+            }
+            return olMarkdown + '\n';
+        case 'LI':
+            if (node.parentNode && node.parentNode.tagName.toUpperCase() === 'OL') {
+                return childrenMarkdown;
+            }
+            return `* ${childrenMarkdown.trim()}\n`;
+        case 'A':
+            const href = node.getAttribute('href') || '';
+            return `[${childrenMarkdown.trim()}](${href})`;
+        case 'IMG':
+            const src = node.getAttribute('src') || '';
+            const alt = node.getAttribute('alt') || 'Изображение';
+            return `![${alt}](${src})`;
+        case 'PRE':
+            const codeEl = node.querySelector('code');
+            if (codeEl) {
+                let lang = '';
+                for (let cls of codeEl.classList) {
+                    if (cls.startsWith('language-')) {
+                        lang = cls.replace('language-', '');
+                    }
+                }
+                return `\n\`\`\`${lang}\n${codeEl.textContent}\n\`\`\`\n`;
+            }
+            return `\n\`\`\`\n${node.textContent}\n\`\`\`\n`;
+        case 'CODE':
+            if (node.parentNode && node.parentNode.tagName.toUpperCase() === 'PRE') {
+                return childrenMarkdown;
+            }
+            return `\`${node.textContent}\``;
+        case 'TABLE':
+            let tableMd = '\n';
+            const rows = node.querySelectorAll('tr');
+            if (rows.length > 0) {
+                const firstRowCells = rows[0].querySelectorAll('th, td');
+                const colCount = firstRowCells.length;
+                tableMd += '| ' + Array.from(firstRowCells).map(cell => nodeToMarkdown(cell).trim()).join(' | ') + ' |\n';
+                tableMd += '| ' + Array.from({length: colCount}, () => '---').join(' | ') + ' |\n';
+                for (let r = 1; r < rows.length; r++) {
+                    const cells = rows[r].querySelectorAll('th, td');
+                    tableMd += '| ' + Array.from(cells).map(cell => nodeToMarkdown(cell).trim()).join(' | ') + ' |\n';
+                }
+            }
+            return tableMd + '\n';
+        case 'DETAILS':
+            const summaryEl = node.querySelector('summary');
+            const summaryText = summaryEl ? summaryEl.textContent : 'Подробности';
+            const contentEl = node.querySelector('.spoiler-content') || node.querySelector('div');
+            const contentMd = contentEl ? nodeToMarkdown(contentEl) : '';
+            return `\n<details class="spoiler-block"><summary class="spoiler-title">${summaryText}</summary><div class="spoiler-content">${parseMarkdownToHtml(contentMd)}</div></details>\n`;
+        default:
+            return childrenMarkdown;
+    }
+}
+
+window.convertHtmlToMarkdown = convertHtmlToMarkdown;
+
+    // --- Менеджер шаблонов ---
+    let templatesList = [];
+    let postsList = [];
+    let currentTemplateName = null;
+    let postTemplatesMeta = {};
+    let defaultTemplateName = 'main';
+
+    function openTemplateManager() {
+        fetch('get_templates.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    templatesList = data.templates;
+                    postsList = data.posts;
+                    defaultTemplateName = data.default;
+                    postTemplatesMeta = data.post_templates || {};
+                    renderTemplatesGrid();
+                    document.getElementById('templateManagerDialog').style.display = 'block';
+                } else {
+                    showNotification('Не удалось загрузить шаблоны: ' + data.error, 'error');
+                }
+            })
+            .catch(err => {
+                showNotification('Ошибка загрузки шаблонов', 'error');
+            });
+    }
+
+    function closeTemplateManager() {
+        document.getElementById('templateManagerDialog').style.display = 'none';
+    }
+
+    function renderTemplatesGrid() {
+        const grid = document.getElementById('templatesGrid');
+        grid.innerHTML = '';
+        
+        templatesList.forEach(tpl => {
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.onclick = () => openTemplateDetails(tpl.name);
+            
+            // Build badges
+            let badges = '';
+            if (tpl.name === 'main') {
+                badges += `<span style="background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px;">Главный</span>`;
+            }
+            if (tpl.name === defaultTemplateName) {
+                badges += `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px;">По умолчанию</span>`;
+            }
+            
+            // Generate miniature preview HTML
+            const previewHtml = getTemplatePreviewHtml(tpl.code);
+            
+            card.innerHTML = `
+                <div class="template-preview-card-wrap">
+                    <iframe class="template-preview-iframe" srcdoc="${escapeHtml(previewHtml)}"></iframe>
+                    <div style="position: absolute; top:0; left:0; right:0; bottom:0; background:transparent; z-index:2;"></div>
+                </div>
+                <div style="padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <span style="color: var(--text-color);">${tpl.title}</span>
+                        <div style="display: flex; gap: 2px;">${badges}</div>
+                    </div>
+                    <div style="font-size: 12px; opacity: 0.7; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 34px; color: var(--text-color);">
+                        ${tpl.description || 'Нет описания'}
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function getTemplatePreviewHtml(templateCode) {
+        let mockContent = `
+            <p>Это пример текста статьи для предпросмотра шаблона. Здесь вы можете увидеть, как будут выглядеть ваши абзацы, ссылки, списки и другие элементы.</p>
+            <h2>Подзаголовок статьи</h2>
+            <p>А здесь ссылка на <a href="#">какой-то внешний ресурс</a>.</p>
+            <ul>
+                <li>Первый пункт списка</li>
+                <li>Второй пункт списка</li>
+            </ul>
+            <div class="blog-image-align-wrap" style="text-align:center">
+                <div class="blog-image-wrap">
+                    <div style="background:#4CAF50;color:white;padding:40px;border-radius:8px;font-weight:bold;">Пример картинки / медиа</div>
+                    <span class="caption">Подпись к медиа-файлу</span>
+                </div>
+            </div>
+        `;
+        let preview = templateCode
+            .replace(/\{\{TITLE\}\}/g, 'Пример заголовка статьи')
+            .replace(/\{\{DATE\}\}/g, '20.06.2026 12:00')
+            .replace(/\{\{POST_ID\}\}/g, '1')
+            .replace(/\{\{META_TAGS\}\}/g, '')
+            .replace(/\{\{CUSTOM_FONTS\}\}/g, '')
+            .replace(/\{\{BODY_STYLE\}\}/g, '')
+            .replace(/\{\{CONTENT_WRAPPER_START\}\}/g, '')
+            .replace(/\{\{CONTENT_WRAPPER_END\}\}/g, '')
+            .replace(/\{\{CONTENT\}\}/g, mockContent);
+
+        // Inject <base href="data/blog/"> inside <head> if present to resolve relative URLs of CSS and JS assets correctly
+        if (!preview.includes('<base ') && preview.includes('<head>')) {
+            preview = preview.replace('<head>', '<head>\n    <base href="data/blog/">');
+        } else if (!preview.includes('<base ')) {
+            preview = '<base href="data/blog/">' + preview;
+        }
+
+        return preview;
+    }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function triggerTemplateUpload() {
+        document.getElementById('templateFileInput').click();
+    }
+
+    function handleTemplateUpload(input) {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        
+        const formData = new FormData();
+        formData.append('template_file', file);
+        
+        fetch('upload_template.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            input.value = '';
+            if (data.success) {
+                showNotification('Шаблон успешно загружен', 'success');
+                // Refresh templates grid
+                openTemplateManager();
+            } else {
+                if (data.missing) {
+                    showNotification('Ошибка: в шаблоне не хватает плейсхолдеров: ' + data.missing.join(', '), 'error');
+                } else {
+                    showNotification('Ошибка загрузки шаблона: ' + data.error, 'error');
+                }
+            }
+        })
+        .catch(err => {
+            input.value = '';
+            showNotification('Ошибка сети при загрузке шаблона', 'error');
+        });
+    }
+
+    function openTemplateDetails(name) {
+        currentTemplateName = name;
+        const tpl = templatesList.find(t => t.name === name);
+        if (!tpl) return;
+        
+        document.getElementById('detailsTemplateTitle').textContent = `Детали шаблона: ${tpl.title}`;
+        document.getElementById('detailsTemplateNameInput').value = tpl.title;
+        document.getElementById('detailsTemplateNameInput').disabled = tpl.is_system;
+        document.getElementById('detailsTemplateDescriptionInput').value = tpl.description || '';
+        document.getElementById('detailsTemplateCodeInput').value = tpl.code;
+        
+        const deleteBtn = document.getElementById('deleteTemplateBtn');
+        if (tpl.is_system || tpl.name === 'main' || tpl.name === defaultTemplateName) {
+            deleteBtn.style.display = 'none';
+        } else {
+            deleteBtn.style.display = 'block';
+        }
+        
+        updateTemplateLivePreview();
+        document.getElementById('templateDetailsDialog').style.display = 'block';
+    }
+
+    // Live update live preview inside text area
+    let previewDebounce = null;
+    function updateTemplateLivePreview() {
+        if (previewDebounce) clearTimeout(previewDebounce);
+        previewDebounce = setTimeout(() => {
+            const code = document.getElementById('detailsTemplateCodeInput').value;
+            const previewHtml = getTemplatePreviewHtml(code);
+            const iframe = document.getElementById('templatePreviewIframe');
+            iframe.srcdoc = previewHtml;
+        }, 300);
+    }
+
+    function closeTemplateDetails() {
+        document.getElementById('templateDetailsDialog').style.display = 'none';
+        document.getElementById('saveTemplateDropdownMenu').style.display = 'none';
+    }
+
+    function toggleSaveTemplateDropdown() {
+        const menu = document.getElementById('saveTemplateDropdownMenu');
+        const isVisible = menu.style.display === 'flex';
+        menu.style.display = isVisible ? 'none' : 'flex';
+    }
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const btn = document.getElementById('saveTemplateDropdownBtn');
+        const menu = document.getElementById('saveTemplateDropdownMenu');
+        if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    });
+
+    function saveTemplateData() {
+        const title = document.getElementById('detailsTemplateNameInput').value.trim();
+        const description = document.getElementById('detailsTemplateDescriptionInput').value.trim();
+        const code = document.getElementById('detailsTemplateCodeInput').value;
+        
+        if (title === '') {
+            showNotification('Введите название шаблона', 'warning');
+            return Promise.reject('Empty title');
+        }
+        
+        return fetch('save_template.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: currentTemplateName,
+                title: title,
+                description: description,
+                code: code
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                return true;
+            } else {
+                if (data.missing) {
+                    showNotification('В коде отсутствуют обязательные плейсхолдеры: ' + data.missing.join(', '), 'error');
+                } else {
+                    showNotification('Ошибка сохранения: ' + data.error, 'error');
+                }
+                throw new Error(data.error);
+            }
+        });
+    }
+
+    function saveAndApplyTemplateToAll() {
+        saveTemplateData()
+            .then(() => {
+                return fetch('apply_template.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        template_name: currentTemplateName,
+                        mode: 'default'
+                    })
+                });
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    closeTemplateDetails();
+                    openTemplateManager(); // Refresh grid
+                } else {
+                    showNotification('Ошибка применения шаблона: ' + data.error, 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+            });
+    }
+
+    function showApplyToSpecificPostList() {
+        saveTemplateData()
+            .then(() => {
+                document.getElementById('templatePostSearchInput').value = '';
+                renderTemplatePostList();
+                document.getElementById('applyToPostModal').style.display = 'block';
+            })
+            .catch(err => {
+                console.error(err);
+            });
+    }
+
+    function closeApplyToPostModal() {
+        document.getElementById('applyToPostModal').style.display = 'none';
+    }
+
+    function renderTemplatePostList() {
+        const container = document.getElementById('templatePostList');
+        container.innerHTML = '';
+        
+        if (postsList.length === 0) {
+            container.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 10px;">Нет статей</div>';
+            return;
+        }
+        
+        postsList.forEach(post => {
+            const item = document.createElement('div');
+            item.className = 'template-post-item';
+            item.setAttribute('data-title', post.title.toLowerCase());
+            
+            // Check if this post currently uses this template
+            const isAssigned = postTemplatesMeta[post.id] === currentTemplateName;
+            
+            item.innerHTML = `
+                <div style="flex: 1; min-width: 0; padding-right: 10px;">
+                    <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-color);">${post.title}</div>
+                    <div style="font-size: 11px; opacity: 0.6; margin-top: 2px;">Дата: ${post.date} ${isAssigned ? '• <span style="color:#10b981; font-weight:600;">Уже применен</span>' : ''}</div>
+                </div>
+                <button type="button" onclick="applyTemplateToPost(${post.id})" style="padding: 6px 12px; background: ${isAssigned ? '#10b981' : 'var(--primary-color, #4CAF50)'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 500;">
+                    ${isAssigned ? 'Переприменить' : 'Выбрать'}
+                </button>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function filterTemplatePosts() {
+        const query = document.getElementById('templatePostSearchInput').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.template-post-item');
+        
+        items.forEach(item => {
+            const title = item.getAttribute('data-title');
+            if (title.indexOf(query) !== -1) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function applyTemplateToPost(postId) {
+        fetch('apply_template.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                template_name: currentTemplateName,
+                mode: 'post',
+                post_id: postId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                closeApplyToPostModal();
+                closeTemplateDetails();
+                openTemplateManager(); // Refresh grid
+            } else {
+                showNotification('Ошибка: ' + data.error, 'error');
+            }
+        })
+        .catch(err => {
+            showNotification('Ошибка сети при применении шаблона', 'error');
+        });
+    }
+
+    function deleteCurrentTemplate() {
+        showConfirm('Вы действительно хотите удалить этот шаблон?').then(confirmed => {
+            if (!confirmed) return;
+            
+            fetch('delete_template.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: currentTemplateName
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Шаблон удален', 'success');
+                    closeTemplateDetails();
+                    openTemplateManager(); // Refresh grid
+                } else {
+                    showNotification('Ошибка при удалении шаблона: ' + data.error, 'error');
+                }
+            })
+            .catch(err => {
+                showNotification('Ошибка сети при удалении шаблона', 'error');
+            });
+        });
+    }
+
+    function showTemplatePlaceholdersInfo(e) {
+        e.preventDefault();
+        const info = `Обязательные плейсхолдеры в шаблоне:\n\n` +
+            `{{TITLE}} - заголовок статьи\n` +
+            `{{DATE}} - дата публикации\n` +
+            `{{POST_ID}} - ID статьи\n` +
+            `{{CONTENT}} - основной контент\n` +
+            `{{META_TAGS}} - метатеги SEO\n` +
+            `{{CUSTOM_FONTS}} - блок шрифтов\n` +
+            `{{BODY_STYLE}} - стили тела документа\n` +
+            `{{CONTENT_WRAPPER_START}} - начало обертки контента\n` +
+            `{{CONTENT_WRAPPER_END}} - конец обертки контента`;
+        alert(info);
+    }
+
+    function showTemplateInstructions() {
+        document.getElementById('templateInstructionsDialog').style.display = 'block';
+    }
+
+    function closeTemplateInstructions() {
+        document.getElementById('templateInstructionsDialog').style.display = 'none';
+    }
+
+    // Export functions to window scope
+    window.openTemplateManager = openTemplateManager;
+    window.closeTemplateManager = closeTemplateManager;
+    window.triggerTemplateUpload = triggerTemplateUpload;
+    window.handleTemplateUpload = handleTemplateUpload;
+    window.openTemplateDetails = openTemplateDetails;
+    window.closeTemplateDetails = closeTemplateDetails;
+    window.updateTemplateLivePreview = updateTemplateLivePreview;
+    window.toggleSaveTemplateDropdown = toggleSaveTemplateDropdown;
+    window.saveAndApplyTemplateToAll = saveAndApplyTemplateToAll;
+    window.showApplyToSpecificPostList = showApplyToSpecificPostList;
+    window.closeApplyToPostModal = closeApplyToPostModal;
+    window.filterTemplatePosts = filterTemplatePosts;
+    window.applyTemplateToPost = applyTemplateToPost;
+    window.deleteCurrentTemplate = deleteCurrentTemplate;
+    window.showTemplatePlaceholdersInfo = showTemplatePlaceholdersInfo;
+    window.showTemplateInstructions = showTemplateInstructions;
+    window.closeTemplateInstructions = closeTemplateInstructions;
+
+// --- Наборы смайлов ---
+function openSmileSetsDialog() {
+    document.getElementById('smileSetsDialog').style.display = 'block';
+    loadSmileSetsList();
+}
+
+function closeSmileSetsDialog() {
+    document.getElementById('smileSetsDialog').style.display = 'none';
+    document.getElementById('smileFolderInput').value = '';
+    document.getElementById('smileFilesInput').value = '';
+    document.getElementById('smileSetNameInput').value = '';
+}
+
+function toggleSmileUploadMode(mode) {
+    if (mode === 'folder') {
+        document.getElementById('smileUploadFolderContainer').style.display = 'block';
+        document.getElementById('smileUploadFilesContainer').style.display = 'none';
+    } else {
+        document.getElementById('smileUploadFolderContainer').style.display = 'none';
+        document.getElementById('smileUploadFilesContainer').style.display = 'block';
+    }
+}
+
+async function loadSmileSetsList() {
+    const listContainer = document.getElementById('smileSetsList');
+    if (!listContainer) return;
+    
+    try {
+        const response = await fetch('get_smiles.php?t=' + Date.now());
+        const data = await response.json();
+        
+        if (data.success) {
+            const setNames = Object.keys(data.sets);
+            if (setNames.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 10px; color: var(--text-color);">Нет загруженных наборов</div>';
+            } else {
+                listContainer.innerHTML = setNames.map(name => {
+                    const count = data.sets[name].length;
+                    return `<div class="smile-set-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border-color); color: var(--text-color);">
+                        <span class="smile-set-name">${escapeHtml(name)} <span class="smile-set-count" style="font-size: 12px; opacity: 0.6; margin-left: 8px;">(${count} смайлов)</span></span>
+                        <button type="button" class="smile-set-delete-btn" style="background: #ef4444; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;" onclick="deleteSmileSet('${escapeHtmlJS(name)}')">Удалить</button>
+                    </div>`;
+                }).join('');
+            }
+        } else {
+            listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 10px;">Ошибка загрузки списка</div>';
+        }
+    } catch (error) {
+        console.error('Error loading smile sets:', error);
+        listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 10px;">Ошибка сети</div>';
+    }
+}
+
+async function handleSmileSetUpload() {
+    const uploadType = document.querySelector('input[name="smileUploadType"]:checked').value;
+    const formData = new FormData();
+    let files = [];
+    let setName = '';
+
+    if (uploadType === 'folder') {
+        const folderInput = document.getElementById('smileFolderInput');
+        files = Array.from(folderInput.files);
+        if (files.length === 0) {
+            showNotification('Выберите папку для загрузки', 'warning');
+            return;
+        }
+        if (files[0].webkitRelativePath) {
+            setName = files[0].webkitRelativePath.split('/')[0];
+        } else {
+            setName = 'default_set';
+        }
+    } else {
+        const filesInput = document.getElementById('smileFilesInput');
+        files = Array.from(filesInput.files);
+        setName = document.getElementById('smileSetNameInput').value.trim();
+        if (files.length === 0) {
+            showNotification('Выберите GIF-файлы для загрузки', 'warning');
+            return;
+        }
+        if (!setName) {
+            showNotification('Введите название для набора', 'warning');
+            return;
+        }
+    }
+
+    formData.append('setName', setName);
+    let hasGif = false;
+    files.forEach(file => {
+        if (file.name.toLowerCase().endsWith('.gif')) {
+            formData.append('smiles[]', file);
+            hasGif = true;
+        }
+    });
+
+    if (!hasGif) {
+        showNotification('В выбранных файлах нет изображений формата .gif', 'warning');
+        return;
+    }
+
+    try {
+        showNotification('Загрузка смайлов...', 'info');
+        const response = await fetch('upload_smiles.php', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+            showNotification(`Набор "${setName}" успешно загружен (${data.count} смайлов)`, 'success');
+            loadSmileSetsList();
+            document.getElementById('smileFolderInput').value = '';
+            document.getElementById('smileFilesInput').value = '';
+            document.getElementById('smileSetNameInput').value = '';
+        } else {
+            showNotification('Ошибка загрузки: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error uploading smiles:', error);
+        showNotification('Ошибка сети при загрузке набора', 'error');
+    }
+}
+
+async function deleteSmileSet(setName) {
+    showConfirm(`Удалить набор смайлов "${setName}"? Все файлы этого набора будут удалены.`).then(async (result) => {
+        if (!result) return;
+        
+        const formData = new FormData();
+        formData.append('setName', setName);
+        
+        try {
+            const response = await fetch('delete_smile_set.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification(`Набор "${setName}" успешно удален`, 'success');
+                loadSmileSetsList();
+            } else {
+                showNotification('Ошибка удаления: ' + data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting smile set:', error);
+            showNotification('Ошибка сети при удалении набора', 'error');
+        }
+    });
+}
+
+function toggleSmilesSubmenu(event) {
+    event.stopPropagation();
+    
+    const button = event.currentTarget;
+    const isOpen = button.classList.contains('submenu-open');
+    
+    document.querySelectorAll('.more-menu-item.has-submenu').forEach(btn => {
+        if (btn !== button) {
+            btn.classList.remove('submenu-open');
+        }
+    });
+    
+    if (!isOpen) {
+        button.classList.add('submenu-open');
+        loadSmilesSubmenuList();
+    } else {
+        button.classList.remove('submenu-open');
+    }
+}
+
+async function loadSmilesSubmenuList() {
+    const submenu = document.getElementById('smilesSubmenu');
+    if (!submenu) return;
+    
+    try {
+        const response = await fetch('get_smiles.php?t=' + Date.now());
+        const data = await response.json();
+        
+        if (data.success) {
+            const setNames = Object.keys(data.sets);
+            const nonEmptySets = setNames.filter(name => data.sets[name].length > 0);
+            
+            if (nonEmptySets.length === 0) {
+                submenu.innerHTML = '<div class="more-submenu-empty">Нет смайлов. Добавьте их через "Наборы смайлов"</div>';
+            } else {
+                let html = '<div class="smiles-submenu-container">';
+                nonEmptySets.forEach(setName => {
+                    html += `<div class="smile-set-section">
+                        <div class="smile-set-title">${escapeHtml(setName)}</div>
+                        <div class="smile-items-grid">`;
+                    
+                    data.sets[setName].forEach(url => {
+                        html += `<button type="button" class="smile-item-btn" onclick="insertSmile('${escapeHtmlJS(url)}')" title="Вставить смайл">
+                            <img src="${url}" alt="smile">
+                        </button>`;
+                    });
+                    
+                    html += `</div></div>`;
+                });
+                html += '</div>';
+                submenu.innerHTML = html;
+            }
+        } else {
+            submenu.innerHTML = '<div class="more-submenu-empty">Ошибка загрузки смайлов</div>';
+        }
+    } catch (error) {
+        console.error('Error loading smiles for submenu:', error);
+        submenu.innerHTML = '<div class="more-submenu-empty">Ошибка сети</div>';
+    }
+}
+
+function insertSmile(url) {
+    const html = `<img src="${url}" class="blog-smile" alt="smile">`;
+    if (editorMode === 'code') {
+        const ta = document.getElementById('content');
+        const cursorPos = ta.selectionStart;
+        ta.value = ta.value.substring(0, cursorPos) + html + ta.value.substring(cursorPos);
+    } else {
+        insertHtmlAtCaret(html);
+    }
+    saveToHistory();
+}
+
+function escapeHtmlJS(str) {
+    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+window.openSmileSetsDialog = openSmileSetsDialog;
+window.closeSmileSetsDialog = closeSmileSetsDialog;
+window.toggleSmileUploadMode = toggleSmileUploadMode;
+window.handleSmileSetUpload = handleSmileSetUpload;
+window.deleteSmileSet = deleteSmileSet;
+window.toggleSmilesSubmenu = toggleSmilesSubmenu;
+window.insertSmile = insertSmile;

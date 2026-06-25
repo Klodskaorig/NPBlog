@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 require_once 'background_functions.php';
@@ -27,7 +28,7 @@ $bgSettings['overlayOpacity'] = $overlayOpacity;
 setPostBackground($postId, $bgSettings);
 
 // Обновляем HTML файл статьи
-$metaFile = 'data/blog/posts-meta.json';
+$metaFile = getDataPath('blog/posts-meta.json');
 if (!file_exists($metaFile)) {
     echo json_encode(['success' => false, 'error' => 'Метаданные не найдены']);
     exit;
@@ -50,7 +51,7 @@ if (!$postData) {
 
 // Применяем настройки к HTML файлу
 if (isset($postData['filename'])) {
-    $htmlFile = 'data/blog/' . $postData['filename'];
+    $htmlFile = getDataPath('blog/') . $postData['filename'];
     applyBackgroundToHtml($htmlFile, $bgSettings);
 }
 

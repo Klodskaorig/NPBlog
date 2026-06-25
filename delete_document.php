@@ -1,4 +1,7 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', 0);
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -7,8 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($data['filePath'])) {
         $filePath = $data['filePath'];
         
-        if (file_exists($filePath) && strpos(realpath($filePath), realpath('data/files/')) === 0) {
-            if (unlink($filePath)) {
+        if (file_exists($filePath) && strpos(realpath($filePath), realpath(getDataPath('files/'))) === 0) {
+            if (@unlink($filePath)) {
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Не удалось удалить файл']);

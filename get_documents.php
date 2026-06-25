@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: application/json');
 
-$uploadDir = 'data/files/';
+$uploadDir = getDataPath('files/');
 $files = [];
 
 if (is_dir($uploadDir)) {
@@ -13,11 +14,17 @@ if (is_dir($uploadDir)) {
                 $files[] = [
                     'name' => $item,
                     'path' => $filePath,
-                    'size' => filesize($filePath)
+                    'url' => getDataUrl('files/' . $item),
+                    'size' => filesize($filePath),
+                    'mtime' => filemtime($filePath)
                 ];
             }
         }
     }
+    
+    usort($files, function($a, $b) {
+        return $b['mtime'] - $a['mtime'];
+    });
 }
 
 echo json_encode(['success' => true, 'files' => $files]);

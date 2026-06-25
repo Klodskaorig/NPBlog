@@ -1,9 +1,10 @@
 <?php
+require_once __DIR__ . '/security_bootstrap.php';
 // Скрипт для регенерации старых статей (со старым HTML-кодом) в новый шаблонный формат
 header('Content-Type: text/plain; charset=utf-8');
 
-$blogDir = 'data/blog/';
-$templateFile = 'data/blog/template_post.html';
+$blogDir = getDataPath('blog/');
+$templateFile = getDataPath('blog/template_post.html');
 
 if (!file_exists($templateFile)) {
     die("Ошибка: Файл шаблона $templateFile не найден.\n");
@@ -56,7 +57,7 @@ foreach ($files as $file) {
     // Извлекаем контент
     $content = "";
     // У старых статей контент находится внутри <div class="content"> или <article class="content">
-    if (preg_match('/<div class="content">(.*?)<\/div>\s*<a href="\.\.\/\.\.\/data\/blog\.html" class="back-link">/s', $html, $contentMatch)) {
+    if (preg_match('/<div class="content">(.*?)<\/div>\s*<a href="(?:\.\.\/\.\.\/data\/|\.\.\/)blog\.html" class="back-link">/s', $html, $contentMatch)) {
         $content = trim($contentMatch[1]);
     } else if (preg_match('/<div class="content">(.*?)<\/div>\s*<a href/s', $html, $contentMatch)) {
         $content = trim($contentMatch[1]);
@@ -67,15 +68,42 @@ foreach ($files as $file) {
         continue;
     }
     
+    // Заменяем все пути serve_data.php на статические прямые пути для готовой статьи
+    $editorSettingsFile = __DIR__ . '/editor_settings.json';
+    $editorSettings = [];
+    if (file_exists($editorSettingsFile)) {
+        $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+    }
+    $dataDir = isset($editorSettings['data_path']) ? $editorSettings['data_path'] : '';
+    if (empty($dataDir)) {
+        $dataDir = __DIR__ . '/data/';
+    }
+    $dirName = basename(rtrim(str_replace('\\', '/', $dataDir), '/'));
+    $staticPrefix = '/' . $dirName . '/';
+    $content = preg_replace('/(?:https?:\/\/[^\/]+)?(?:\/)?serve_data.php\?file=/i', $staticPrefix, $content);
+    $content = preg_replace('/(?:[?&]|&amp;)t=\d+/i', '', $content);
+
     // Создаем новый HTML на основе шаблона
+    require_once 'seo_helper.php';
+    $seoMetaBlock = generateSeoMetaTagsBlock($postId, $title, $content);
+    
     $newHtml = str_replace('{{POST_ID}}', $postId, $templateHtml);
     $newHtml = str_replace('{{TITLE}}', htmlspecialchars($title), $newHtml);
     $newHtml = str_replace('{{DATE}}', htmlspecialchars($date), $newHtml);
-    $newHtml = str_replace('{{CONTENT}}', "\n        " . $content . "\n    ", $newHtml);
+    $newHtml = str_replace('{{META_TAGS}}', $seoMetaBlock, $newHtml);
     $newHtml = str_replace('{{CUSTOM_FONTS}}', $customFontsCss, $newHtml);
-    $newHtml = str_replace('{{BODY_STYLE}}', '', $newHtml);
+
+    $editorSettingsFile = __DIR__ . '/editor_settings.json';
+    $editorSettings = [];
+    if (file_exists($editorSettingsFile)) {
+        $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+    }
+    $contentWidth = isset($editorSettings['contentWidth']) ? (int)$editorSettings['contentWidth'] : 920;
+    $bodyStyle = "style=\"max-width: {$contentWidth}px;\"";
+    $newHtml = str_replace('{{BODY_STYLE}}', $bodyStyle, $newHtml);
     $newHtml = str_replace('{{CONTENT_WRAPPER_START}}', '', $newHtml);
     $newHtml = str_replace('{{CONTENT_WRAPPER_END}}', '', $newHtml);
+    $newHtml = str_replace('{{CONTENT}}', "\n        " . $content . "\n    ", $newHtml);
     
     // Создаем резервную копию оригинала
     $backupPath = $file . '.legacy.bak';
