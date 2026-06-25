@@ -1346,6 +1346,16 @@ if (file_exists($settingsFile)) {
                     </div>
                 </div>
                 
+                <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="settingsIpWhitelistEnabled" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Ограничить доступ по списку IP (allowed_ips.txt)</span>
+                    </label>
+                    <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 8px; opacity: 0.8;">
+                        Если включено, доступ к редактору и всем его функциям будет разрешен только с IP-адресов, перечисленных в файле <code>allowed_ips.txt</code> в корне проекта. При включении ваш текущий IP-адрес будет автоматически добавлен в список, чтобы вы не потеряли доступ.
+                    </p>
+                </div>
+                
                 <div style="margin-bottom: 20px;">
                     <button type="button" onclick="saveSecuritySettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки безопасности</button>
                 </div>
@@ -2999,9 +3009,13 @@ function loadAndApplyAllSettings() {
                 // 3. Безопасность
                 const dataPath = settings.data_path || '/var/www/html/data';
                 const passwordEnabled = settings.password_set || false;
+                const ipWhitelistEnabled = settings.ip_whitelist_enabled || false;
                 
                 const dataPathInput = document.getElementById('settingsDataPath');
                 if (dataPathInput) dataPathInput.value = dataPath;
+                
+                const ipWhitelistCheck = document.getElementById('settingsIpWhitelistEnabled');
+                if (ipWhitelistCheck) ipWhitelistCheck.checked = ipWhitelistEnabled;
                 
                 const notSetDiv = document.getElementById('securityPasswordNotSet');
                 const setDiv = document.getElementById('securityPasswordSet');
@@ -3154,9 +3168,11 @@ function showDisablePasswordForm() {
 function saveSecuritySettings() {
     const dataPath = document.getElementById('settingsDataPath').value.trim();
     const isPasswordSet = document.getElementById('securityPasswordSet').style.display === 'block';
+    const ipWhitelistEnabled = document.getElementById('settingsIpWhitelistEnabled').checked;
     
     let payload = {
-        data_path: dataPath
+        data_path: dataPath,
+        ip_whitelist_enabled: ipWhitelistEnabled
     };
     
     if (!isPasswordSet) {

@@ -12,5 +12,6 @@
     "smoothTyping": false,
     "headerBottomPosition": false,
     "enableMarkdown": false,
-    "contentWidth": 920
+    "contentWidth": 920,
+    "ip_whitelist_enabled": false
 }

@@ -58,6 +58,31 @@ if (isset($data['data_path'])) {
     $existingSettings['data_path'] = trim($data['data_path']);
 }
 
+if (isset($data['ip_whitelist_enabled'])) {
+    $ipWhitelistEnabled = (bool)$data['ip_whitelist_enabled'];
+    $existingSettings['ip_whitelist_enabled'] = $ipWhitelistEnabled;
+    
+    if ($ipWhitelistEnabled) {
+        $clientIp = getClientIp();
+        $allowedIpsFile = __DIR__ . '/allowed_ips.txt';
+        $allowedIps = [];
+        if (file_exists($allowedIpsFile)) {
+            $lines = file($allowedIpsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $cleaned = trim(preg_replace('/#.*/', '', $line));
+                if ($cleaned !== '') {
+                    $allowedIps[] = $cleaned;
+                }
+            }
+        }
+        
+        if (!in_array($clientIp, $allowedIps)) {
+            $content = (file_exists($allowedIpsFile) ? "\n" : "") . $clientIp . " # Auto-added on enable\n";
+            file_put_contents($allowedIpsFile, $content, FILE_APPEND);
+        }
+    }
+}
+
 if (isset($data['password_enabled'])) {
     $passwordEnabled = (bool)$data['password_enabled'];
     $hasOldPassword = !empty($existingSettings['password_hash']);

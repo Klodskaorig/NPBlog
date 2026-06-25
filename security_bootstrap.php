@@ -48,11 +48,195 @@ function getDataUrl($subpath = '') {
     return $webPrefix . $subpath;
 }
 
+if (!function_exists('getClientIp')) {
+    function getClientIp() {
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $ip = trim($ips[0]);
+        } else {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+        return $ip;
+    }
+}
+
+if (!function_exists('renderIpBlockedPage')) {
+    function renderIpBlockedPage($clientIp, $settings) {
+        ?>
+        <!DOCTYPE html>
+        <html lang="ru" <?php echo isset($settings['amoledTheme']) && $settings['amoledTheme'] ? 'data-amoled="true"' : ''; ?>>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Доступ заблокирован</title>
+            <script>
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            </script>
+            <style>
+                :root {
+                    --bg-color: #ffffff;
+                    --text-color: #333333;
+                    --border-color: #000000;
+                    --shadow-color: rgba(0, 0, 0, 0.08);
+                    --danger-color: #d32f2f;
+                    --card-bg: #ffffff;
+                }
+                [data-theme="dark"] {
+                    --bg-color: #121212;
+                    --text-color: #f5f5f5;
+                    --border-color: #ffffff;
+                    --shadow-color: rgba(0, 0, 0, 0.5);
+                    --danger-color: #f44336;
+                    --card-bg: #1e1e1e;
+                }
+                html[data-amoled="true"] {
+                    --bg-color: #000000;
+                    --card-bg: #000000;
+                }
+                * {
+                    box-sizing: border-box;
+                    margin: 0;
+                    padding: 0;
+                }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    padding: 20px;
+                    transition: background-color 0.3s, color 0.3s;
+                }
+                .block-dialog {
+                    background: var(--card-bg);
+                    border: 2px solid var(--border-color);
+                    border-radius: 16px;
+                    padding: 40px 32px;
+                    width: 100%;
+                    max-width: 440px;
+                    box-shadow: 0 12px 32px var(--shadow-color);
+                    text-align: center;
+                    animation: dialogIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                }
+                @keyframes dialogIn {
+                    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+                    to { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                .icon-wrapper {
+                    width: 72px;
+                    height: 72px;
+                    background: rgba(211, 47, 47, 0.1);
+                    color: var(--danger-color);
+                    border: 2px solid var(--danger-color);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 32px;
+                    margin: 0 auto 24px auto;
+                }
+                [data-theme="dark"] .icon-wrapper {
+                    background: rgba(244, 67, 54, 0.15);
+                }
+                h1 {
+                    font-size: 22px;
+                    font-weight: 800;
+                    margin-bottom: 12px;
+                    letter-spacing: -0.02em;
+                }
+                p {
+                    font-size: 14px;
+                    line-height: 1.6;
+                    opacity: 0.8;
+                    margin-bottom: 24px;
+                }
+                .ip-box {
+                    background: var(--bg-color);
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    font-family: monospace;
+                    font-size: 16px;
+                    font-weight: bold;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 24px;
+                    display: inline-block;
+                    padding: 8px 16px;
+                    color: var(--danger-color);
+                }
+                .hint-text {
+                    font-size: 12px;
+                    opacity: 0.5;
+                    line-height: 1.5;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="block-dialog">
+                <div class="icon-wrapper">🚫</div>
+                <h1>Доступ ограничен</h1>
+                <p>Ваш IP-адрес не входит в список разрешенных адресов для входа в панель управления NPBlog.</p>
+                <div class="ip-box"><?php echo htmlspecialchars($clientIp); ?></div>
+                <div class="hint-text">
+                    Для получения доступа добавьте данный IP-адрес в файл <code>allowed_ips.txt</code> в корневого каталоге проекта или обратитесь к администратору.
+                </div>
+            </div>
+        </body>
+        </html>
+        <?php
+    }
+}
+
 // Check authentication
 $settingsFile = __DIR__ . '/editor_settings.json';
 $settings = [];
 if (file_exists($settingsFile)) {
     $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
+}
+
+// --- IP Whitelist Check ---
+if (isset($settings['ip_whitelist_enabled']) && $settings['ip_whitelist_enabled'] && php_sapi_name() !== 'cli') {
+    $clientIp = getClientIp();
+    $allowedIpsFile = __DIR__ . '/allowed_ips.txt';
+    $allowedIps = [];
+    if (file_exists($allowedIpsFile)) {
+        $lines = file($allowedIpsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $cleaned = trim(preg_replace('/#.*/', '', $line));
+            if ($cleaned !== '') {
+                $allowedIps[] = $cleaned;
+            }
+        }
+    }
+    
+    $isAllowed = false;
+    foreach ($allowedIps as $ip) {
+        if ($clientIp === $ip) {
+            $isAllowed = true;
+            break;
+        }
+    }
+    
+    if (!$isAllowed) {
+        $currentScript = basename($_SERVER['SCRIPT_NAME']);
+        if ($currentScript === 'index.php' || $currentScript === 'login.php') {
+            renderIpBlockedPage($clientIp, $settings);
+            exit();
+        } else {
+            header('HTTP/1.1 403 Forbidden');
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false, 
+                'error' => 'ip_blocked', 
+                'message' => 'Доступ заблокирован для вашего IP: ' . $clientIp
+            ]);
+            exit();
+        }
+    }
 }
 
 $passwordHash = isset($settings['password_hash']) ? $settings['password_hash'] : '';
@@ -382,3 +566,5 @@ function renderLoginPage($settings) {
     </html>
     <?php
 }
+
+
