@@ -1829,6 +1829,70 @@ document.addEventListener('DOMContentLoaded', function() {
     if (gridLayoutSelect) {
         gridLayoutSelect.addEventListener('change', renderGridPreview);
     }
+    
+    // Remember state of "Remove rounded corners" checkbox
+    const noRadiusChk = document.getElementById('noBorderRadius');
+    if (noRadiusChk) {
+        noRadiusChk.checked = localStorage.getItem('noBorderRadius') === 'true';
+        noRadiusChk.addEventListener('change', function() {
+            localStorage.setItem('noBorderRadius', this.checked ? 'true' : 'false');
+        });
+    }
+
+    // Support inserting images from clipboard (Ctrl+V / Paste)
+    const handlePaste = function(e) {
+        const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+        if (!items) return;
+        
+        let imageItem = null;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                imageItem = item;
+                break;
+            }
+        }
+        
+        if (imageItem) {
+            e.preventDefault();
+            const file = imageItem.getAsFile();
+            if (!file) return;
+            
+            showNotification('Загрузка изображения из буфера обмена...', 'info');
+            
+            const noBorderRadius = localStorage.getItem('noBorderRadius') === 'true';
+            
+            const formData = new FormData();
+            // Explicitly set filename with proper extension to ensure backend validation passes
+            const extension = file.type === 'image/jpeg' || file.type === 'image/jpg' ? 'jpg' : 'png';
+            formData.append('image', file, `clipboard-${Date.now()}.${extension}`);
+            
+            fetch('upload_image.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    insertImage(data.url, '100', '', '%', '', '', noBorderRadius);
+                    showNotification('Изображение успешно вставлено из буфера обмена', 'success');
+                } else {
+                    showNotification('Ошибка при загрузке изображения: ' + data.error, 'error');
+                }
+            })
+            .catch(err => {
+                showNotification('Ошибка при загрузке изображения из буфера обмена', 'error');
+            });
+        }
+    };
+
+    const visualEditor = document.getElementById('contentVisual');
+    if (visualEditor) {
+        visualEditor.addEventListener('paste', handlePaste);
+    }
+    const codeEditor = document.getElementById('content');
+    if (codeEditor) {
+        codeEditor.addEventListener('paste', handlePaste);
+    }
 });
 
 function renderGridPreview() {
@@ -2962,7 +3026,7 @@ function closeImageDialog() {
     document.getElementById('customHeight').value = '';
     document.getElementById('gridLayout').value = '';
     const noRadiusChk = document.getElementById('noBorderRadius');
-    if (noRadiusChk) noRadiusChk.checked = false;
+    if (noRadiusChk) noRadiusChk.checked = localStorage.getItem('noBorderRadius') === 'true';
     document.querySelector('input[name="imageSource"][value="file"]').checked = true;
     document.getElementById('fileUploadContainer').style.display = 'block';
     document.getElementById('imageGridPreviewContainer').style.display = 'none';
@@ -7479,6 +7543,9 @@ function nodeToMarkdown(node) {
 }
 
 window.convertHtmlToMarkdown = convertHtmlToMarkdown;
+window.getCurrentEditId = function() {
+    return typeof currentEditId !== 'undefined' ? currentEditId : null;
+};
 
     // --- Менеджер шаблонов ---
     let templatesList = [];
@@ -7601,36 +7668,50 @@ window.convertHtmlToMarkdown = convertHtmlToMarkdown;
         document.getElementById('templateFileInput').click();
     }
 
-    function handleTemplateUpload(input) {
+    async function handleTemplateUpload(input) {
         if (!input.files || input.files.length === 0) return;
-        const file = input.files[0];
         
-        const formData = new FormData();
-        formData.append('template_file', file);
+        const files = Array.from(input.files);
+        input.value = '';
         
-        fetch('upload_template.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            input.value = '';
-            if (data.success) {
-                showNotification('Шаблон успешно загружен', 'success');
-                // Refresh templates grid
-                openTemplateManager();
-            } else {
-                if (data.missing) {
-                    showNotification('Ошибка: в шаблоне не хватает плейсхолдеров: ' + data.missing.join(', '), 'error');
+        let successCount = 0;
+        let errors = [];
+        
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('template_file', file);
+            
+            try {
+                const res = await fetch('upload_template.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    successCount++;
                 } else {
-                    showNotification('Ошибка загрузки шаблона: ' + data.error, 'error');
+                    if (data.missing) {
+                        errors.push(`Файл ${file.name}: не хватает плейсхолдеров: ${data.missing.join(', ')}`);
+                    } else {
+                        errors.push(`Файл ${file.name}: ${data.error}`);
+                    }
                 }
+            } catch (err) {
+                errors.push(`Файл ${file.name}: ошибка сети`);
             }
-        })
-        .catch(err => {
-            input.value = '';
-            showNotification('Ошибка сети при загрузке шаблона', 'error');
-        });
+        }
+        
+        if (successCount > 0) {
+            showNotification(`Успешно загружено шаблонов: ${successCount}`, 'success');
+            openTemplateManager();
+        }
+        
+        if (errors.length > 0) {
+            errors.forEach(err => {
+                showNotification(err, 'error');
+            });
+        }
     }
 
     function openTemplateDetails(name) {

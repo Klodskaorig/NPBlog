@@ -54,6 +54,18 @@ if (isset($data['tutorialCompleted'])) {
     $existingSettings['tutorialCompleted'] = (bool)$data['tutorialCompleted'];
 }
 
+if (isset($data['headerLayout']) && is_array($data['headerLayout'])) {
+    $existingSettings['headerLayout'] = $data['headerLayout'];
+}
+
+if (isset($data['headerHeight'])) {
+    $existingSettings['headerHeight'] = (int)$data['headerHeight'];
+}
+
+if (isset($data['headerTwoRows'])) {
+    $existingSettings['headerTwoRows'] = (bool)$data['headerTwoRows'];
+}
+
 if (isset($data['data_path'])) {
     $existingSettings['data_path'] = trim($data['data_path']);
 }

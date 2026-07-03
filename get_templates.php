@@ -18,7 +18,15 @@ if (file_exists($settingsFile)) {
 $responseTemplates = [];
 if (isset($settings['templates']) && is_array($settings['templates'])) {
     foreach ($settings['templates'] as $name => $meta) {
-        $templateFile = $templatesDir . $name . '.html';
+        $path = isset($meta['path']) ? $meta['path'] : '';
+        if (empty($path)) {
+            if ($name === 'main') {
+                $path = 'NPBlog/main.html';
+            } else {
+                $path = $name . '.html';
+            }
+        }
+        $templateFile = $templatesDir . $path;
         $code = '';
         if (file_exists($templateFile)) {
             $code = @file_get_contents($templateFile) ?: '';

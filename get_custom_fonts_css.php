@@ -8,17 +8,31 @@ function getCustomFontsCss() {
     if (is_dir($fontsDir)) {
         $files = scandir($fontsDir);
         
+        // Resolve data directory name for correct web path
+        $editorSettingsFile = __DIR__ . '/editor_settings.json';
+        $editorSettings = [];
+        if (file_exists($editorSettingsFile)) {
+            $editorSettings = json_decode(file_get_contents($editorSettingsFile), true) ?: [];
+        }
+        $dataDir = isset($editorSettings['data_path']) ? $editorSettings['data_path'] : '';
+        if (empty($dataDir)) {
+            $dataDir = __DIR__ . '/data/';
+        }
+        $dirName = basename(rtrim(str_replace('\\', '/', $dataDir), '/'));
+        
         foreach ($files as $file) {
             if ($file === '.' || $file === '..') continue;
             
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
             
-            // Поддерживаемые форматы шрифтов
+            // Supported font formats
             if (in_array($ext, ['ttf', 'otf', 'woff', 'woff2'])) {
                 $fontName = pathinfo($file, PATHINFO_FILENAME);
-                $fontPath = $fontsDir . $file;
                 
-                // Определяем формат шрифта
+                // Construct the correct absolute web URL
+                $fontWebUrl = '/' . $dirName . '/fonts/' . $file;
+                
+                // Determine font format
                 $format = 'truetype';
                 if ($ext === 'woff') $format = 'woff';
                 else if ($ext === 'woff2') $format = 'woff2';
@@ -26,7 +40,7 @@ function getCustomFontsCss() {
                 
                 $css .= "\n        @font-face {\n";
                 $css .= "            font-family: '$fontName';\n";
-                $css .= "            src: url('/$fontPath') format('$format');\n";
+                $css .= "            src: url('$fontWebUrl') format('$format');\n";
                 $css .= "        }\n";
             }
         }

@@ -116,17 +116,18 @@ if (file_exists($settingsFile)) {
     <!-- Фиксированный хеадер редактора -->
     <header class="editor-header">
         <div class="header-left">
-            <span class="header-logo">NPBlog</span>
+            <div id="toolbar-row-1" class="toolbar-row" data-placeholder="Ряд 1">
+                <span class="header-logo">NPBlog</span>
             <span class="toolbar-divider" id="logoDivider"></span>
             
-            <div class="mode-toggle" id="headerModeToggle" onmousedown="event.preventDefault()">
+            <div class="mode-toggle" id="headerModeToggle" onmousedown="if(!document.body.classList.contains('header-customizing')) event.preventDefault()">
                 <button type="button" id="modeVisualBtn" class="format-btn" title="Визуальный режим">Визуально</button>
                 <button type="button" id="modeCodeBtn" class="format-btn" title="Режим кода">Код</button>
             </div>
             
             <span class="toolbar-divider" id="modeActionsDivider"></span>
             
-            <div class="editor-actions" id="headerEditorActions" onmousedown="event.preventDefault()">
+            <div class="editor-actions" id="headerEditorActions" onmousedown="if(!document.body.classList.contains('header-customizing')) event.preventDefault()">
                 <button type="button" id="undoBtn" class="format-btn" onclick="undoEdit()" title="Отменить (Ctrl+Z)">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
                         <path d="M3 7v6h6" />
@@ -143,135 +144,127 @@ if (file_exists($settingsFile)) {
             
             <span class="toolbar-divider" id="actionsFormattingDivider"></span>
             
-            <div class="formatting-buttons" id="formatBarRow" onmousedown="event.preventDefault()">
-                <span class="toolbar-group">
-                    <button type="button" id="btn-bold" class="format-btn" onclick="formatText('b')" title="Жирный">B</button>
-                    <button type="button" id="btn-italic" class="format-btn" onclick="formatText('i')" title="Курсив"><i>I</i></button>
-                    <button type="button" id="btn-underline" class="format-btn" onclick="formatText('u')" title="Подчеркнутый">U</button>
-                    <button type="button" id="btn-strike" class="format-btn" onclick="formatText('s')" title="Зачеркнутый"><s>S</s></button>
-                    <button type="button" id="btn-sup" class="format-btn" onclick="formatText('sup')" title="Верхний индекс"><span>X<sup>2</sup></span></button>
-                    <button type="button" id="btn-sub" class="format-btn" onclick="formatText('sub')" title="Нижний индекс"><span>X<sub>2</sub></span></button>
-                    <button type="button" id="btn-h2" class="format-btn" onclick="formatText('h2')" title="Подзаголовок">H</button>
-                    <button type="button" id="btn-table" class="format-btn" onclick="openTableDialog()" title="Вставить таблицу">⊞</button>
-                    <button type="button" id="btn-spoiler" class="format-btn" onclick="openSpoilerDialog()" title="Сворачиваемый блок"><span class="spoiler-icon">▼</span></button>
-                    <button type="button" id="btn-marker" class="format-btn" onclick="openMarkerDialog()" title="Маркер">🖍</button>
-                    <button type="button" id="btn-anchor" class="format-btn" onclick="addAnchor()" title="Добавить якорь">⚓</button>
-                    <button type="button" id="btn-ascii" class="format-btn" onclick="openAsciiDrawer()" title="ASCII Рисовалка">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <line x1="9" y1="3" x2="9" y2="21"/>
-                            <line x1="15" y1="3" x2="15" y2="21"/>
-                            <line x1="3" y1="9" x2="21" y2="9"/>
-                            <line x1="3" y1="15" x2="21" y2="15"/>
-                        </svg>
-                    </button>
-                </span>
-                <span class="toolbar-divider" id="divider-align"></span>
-                <span class="toolbar-group" id="align-group">
-                    <button type="button" class="format-btn" onclick="alignText('left')" title="По левому краю">◄</button>
-                    <button type="button" class="format-btn" onclick="alignText('center')" title="По центру">≡</button>
-                    <button type="button" class="format-btn" onclick="alignText('right')" title="По правому краю">►</button>
-                </span>
-                <span class="toolbar-divider" id="divider-media"></span>
-                <span class="toolbar-group">
-                    <button type="button" class="format-btn" onclick="addLink()" title="Ссылка">🔗</button>
-                    <button type="button" class="format-btn" onclick="showImageUpload()" title="Добавить изображение">📷</button>
-                    <button type="button" class="format-btn" id="btn-media" onclick="showMediaDialog()" title="Добавить медиа">🎬</button>
-                </span>
-                <span class="toolbar-divider" id="divider-fonts"></span>
-                <span class="toolbar-group" id="fonts-group">
-                    <div class="font-size-picker-wrap" id="fontSizeWrapMain">
-                        <button type="button" id="fontSizeBtn" class="format-btn font-size-picker-btn" title="Размер шрифта">14px</button>
-                        <div class="font-size-popover">
-                            <div class="font-size-popover-inner">
-                                <button type="button" class="font-size-item" data-size="12">12px</button>
-                                <button type="button" class="font-size-item" data-size="14">14px</button>
-                                <button type="button" class="font-size-item" data-size="16">16px</button>
-                                <button type="button" class="font-size-item" data-size="18">18px</button>
-                                <button type="button" class="font-size-item" data-size="20">20px</button>
-                                <button type="button" class="font-size-item" data-size="24">24px</button>
-                                <button type="button" class="font-size-item" data-size="28">28px</button>
-                                <button type="button" class="font-size-item" data-size="32">32px</button>
-                                <div class="font-size-custom">
-                                    <label>Свой размер (8–72)</label>
-                                    <input type="number" id="fontSizeCustomMain" min="8" max="72" placeholder="px">
-                                    <button type="button" onclick="applyCustomFontSize('fontSizeWrapMain')">Применить</button>
-                                </div>
-                            </div>
+            <button type="button" id="btn-bold" class="format-btn" onclick="formatText('b')" title="Жирный"><span class="button-icon"><b>B</b></span><span class="button-text">Жирный</span></button>
+            <button type="button" id="btn-italic" class="format-btn" onclick="formatText('i')" title="Курсив"><span class="button-icon"><i>I</i></span><span class="button-text">Курсив</span></button>
+            <button type="button" id="btn-underline" class="format-btn" onclick="formatText('u')" title="Подчеркнутый"><span class="button-icon"><u>U</u></span><span class="button-text">Подчеркнутый</span></button>
+            <button type="button" id="btn-strike" class="format-btn" onclick="formatText('s')" title="Зачеркнутый"><span class="button-icon"><s>S</s></span><span class="button-text">Зачеркнутый</span></button>
+            <button type="button" id="btn-sup" class="format-btn" onclick="formatText('sup')" title="Верхний индекс"><span class="button-icon">X<sup>2</sup></span><span class="button-text">Верхний индекс</span></button>
+            <button type="button" id="btn-sub" class="format-btn" onclick="formatText('sub')" title="Нижний индекс"><span class="button-icon">X<sub>2</sub></span><span class="button-text">Нижний индекс</span></button>
+            <button type="button" id="btn-h2" class="format-btn" onclick="formatText('h2')" title="Подзаголовок"><span class="button-icon"><b>H</b></span><span class="button-text">Подзаголовок</span></button>
+            <button type="button" id="btn-table" class="format-btn" onclick="openTableDialog()" title="Вставить таблицу"><span class="button-icon">⊞</span><span class="button-text">Вставить таблицу</span></button>
+            <button type="button" id="btn-spoiler" class="format-btn" onclick="openSpoilerDialog()" title="Сворачиваемый блок"><span class="button-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="display: block;"><path d="M3 7l9 10 9-10H3z" /></svg></span><span class="button-text">Сворачиваемый блок</span></button>
+            <button type="button" id="btn-marker" class="format-btn" onclick="openMarkerDialog()" title="Маркер"><span class="button-icon">🖍</span><span class="button-text">Маркер</span></button>
+            <button type="button" id="btn-anchor" class="format-btn" onclick="addAnchor()" title="Добавить якорь"><span class="button-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="5" r="3" /><line x1="12" y1="8" x2="12" y2="22" /><path d="M5 12H2a10 10 0 0 0 20 0h-3" /></svg></span><span class="button-text">Добавить якорь</span></button>
+            
+            <span class="toolbar-divider" id="divider-align"></span>
+            
+            <button type="button" id="btn-align-left" class="format-btn" onclick="alignText('left')" title="По левому краю"><span class="button-icon">◄</span><span class="button-text">Выравнивание по левому краю</span></button>
+            <button type="button" id="btn-align-center" class="format-btn" onclick="alignText('center')" title="По центру"><span class="button-icon">≡</span><span class="button-text">Выравнивание по центру</span></button>
+            <button type="button" id="btn-align-right" class="format-btn" onclick="alignText('right')" title="По правому краю"><span class="button-icon">►</span><span class="button-text">Выравнивание по правому краю</span></button>
+            
+            <span class="toolbar-divider" id="divider-media"></span>
+            
+            <button type="button" id="btn-link" class="format-btn" onclick="addLink()" title="Ссылка"><span class="button-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg></span><span class="button-text">Ссылка</span></button>
+            <button type="button" id="btn-image" class="format-btn" onclick="showImageUpload()" title="Добавить изображение"><span class="button-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg></span><span class="button-text">Изображение</span></button>
+            <button type="button" id="btn-media" class="format-btn" onclick="showMediaDialog()" title="Добавить медиа"><span class="button-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg></span><span class="button-text">Медиа</span></button>
+            <button type="button" id="btn-ascii" class="format-btn" onclick="openAsciiDrawer()" title="ASCII Рисовалка"><span class="button-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H19C17.8954 11 17 10.1046 17 9V7C17 5.89543 16.1046 5 15 5H14C12.8954 5 12 4.10457 12 3V2C12 1.5 11.5 1 11 1C5.47715 1 1 5.47715 1 11C1 17.0751 5.47715 22 12 22Z" /><circle cx="7.5" cy="10.5" r="1.5" fill="currentColor" /><circle cx="11.5" cy="7.5" r="1.5" fill="currentColor" /><circle cx="16.5" cy="9.5" r="1.5" fill="currentColor" /></svg></span><span class="button-text">ASCII Рисовалка</span></button>
+            
+            <span class="toolbar-divider" id="divider-fonts"></span>
+            
+            <div class="font-size-picker-wrap" id="fontSizeWrapMain">
+                <button type="button" id="fontSizeBtn" class="format-btn font-size-picker-btn" title="Размер шрифта">14px</button>
+                <div class="font-size-popover">
+                    <div class="font-size-popover-inner">
+                        <button type="button" class="font-size-item" data-size="12">12px</button>
+                        <button type="button" class="font-size-item" data-size="14">14px</button>
+                        <button type="button" class="font-size-item" data-size="16">16px</button>
+                        <button type="button" class="font-size-item" data-size="18">18px</button>
+                        <button type="button" class="font-size-item" data-size="20">20px</button>
+                        <button type="button" class="font-size-item" data-size="24">24px</button>
+                        <button type="button" class="font-size-item" data-size="28">28px</button>
+                        <button type="button" class="font-size-item" data-size="32">32px</button>
+                        <div class="font-size-custom">
+                            <label>Свой размер (8–72)</label>
+                            <input type="number" id="fontSizeCustomMain" min="8" max="72" placeholder="px">
+                            <button type="button" onclick="applyCustomFontSize('fontSizeWrapMain')">Применить</button>
                         </div>
                     </div>
-                    <div class="font-family-picker-wrap" id="fontFamilyWrapMain">
-                        <button type="button" id="fontFamilyBtn" class="format-btn font-family-picker-btn" title="Шрифт">Arial</button>
-                        <div class="font-family-popover">
-                            <div class="font-family-popover-inner">
-                                <button type="button" class="font-family-item" data-font="Arial" style="font-family:Arial">Arial</button>
-                                <button type="button" class="font-family-item" data-font="Times New Roman" style="font-family:'Times New Roman'">Times New Roman</button>
-                                <button type="button" class="font-family-item" data-font="Open Sans" style="font-family:'Open Sans'">Open Sans</button>
-                                <button type="button" class="font-family-item" data-font="Verdana" style="font-family:Verdana">Verdana</button>
-                                <button type="button" class="font-family-item" data-font="Helvetica" style="font-family:Helvetica">Helvetica</button>
-                                <button type="button" class="font-family-item" data-font="Georgia" style="font-family:Georgia">Georgia</button>
-                                <button type="button" class="font-family-item" data-font="PT Sans" style="font-family:'PT Sans'">PT Sans</button>
-                                <button type="button" class="font-family-item" data-font="Comic Sans MS" style="font-family:'Comic Sans MS'">Comic Sans MS</button>
-                                <div class="font-family-custom">
-                                    <button type="button" onclick="openCustomFontsModal()">📁 Свой шрифт</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="color-picker-wrap" id="colorPickerWrapMain">
-                        <button type="button" class="color-picker-btn" title="Цвет текста" aria-label="Цвет текста"><span class="color-preview" style="background:#333;"></span></button>
-                        <div class="color-palette-popover">
-                            <div class="color-palette-grid" id="colorPaletteGridMain"></div>
-                            <div class="color-palette-custom">
-                                <label>Свой цвет <input type="color" id="textColorCustomMain" value="#333333"></label>
-                            </div>
-                        </div>
-                    </div>
-                </span>
-                <span class="toolbar-divider"></span>
-                <span class="toolbar-group">
-                    <div class="more-menu-wrap" id="moreMenuWrap">
-                        <button type="button" class="format-btn" title="Прочее" onclick="toggleMoreMenu()">⋯</button>
-                        <div class="more-menu-dropdown" id="moreMenuDropdown">
-                            <button type="button" class="more-menu-item" onclick="saveDraft()">Сохранить в черновик</button>
-                            <button type="button" class="more-menu-item has-submenu" onclick="toggleDraftsSubmenu(event)">
-                                Черновики
-                                <div class="more-submenu" id="draftsSubmenu">
-                                    <div class="more-submenu-empty">Загрузка...</div>
-                                </div>
-                            </button>
-                            <button type="button" class="more-menu-item" onclick="openSaveInclude()">Сохранить в includes</button>
-                            <button type="button" class="more-menu-item has-submenu" onclick="toggleIncludesSubmenu(event)">
-                                Вставить
-                                <div class="more-submenu" id="includesSubmenu">
-                                    <div class="more-submenu-empty">Загрузка...</div>
-                                </div>
-                            </button>
-                            <button type="button" class="more-menu-item has-submenu" onclick="toggleArticlesSubmenu(event)">
-                                Вставить ссылку на статью
-                                <div class="more-submenu" id="articlesSubmenu">
-                                    <div class="more-submenu-empty">Загрузка...</div>
-                                </div>
-                            </button>
-                            <button type="button" class="more-menu-item has-submenu" onclick="toggleTocSubmenu(event)">
-                                Содержание
-                                <div class="more-submenu" id="tocSubmenu">
-                                    <div class="more-submenu-empty">Нет якорей в статье</div>
-                                </div>
-                            </button>
-                            <button type="button" class="more-menu-item" onclick="openFileUploadDialog()">Загрузить файл</button>
-                            <button type="button" class="more-menu-item" onclick="insertCode()">Вставить блок кода</button>
-                            <button type="button" class="more-menu-item" onclick="openSmileSetsDialog()">Наборы смайлов</button>
-                            <button type="button" class="more-menu-item has-submenu" onclick="toggleSmilesSubmenu(event)">
-                                Смайлы
-                                <div class="more-submenu" id="smilesSubmenu">
-                                    <div class="more-submenu-empty">Загрузка...</div>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                </span>
+                </div>
             </div>
+            
+            <div class="font-family-picker-wrap" id="fontFamilyWrapMain">
+                <button type="button" id="fontFamilyBtn" class="format-btn font-family-picker-btn" title="Шрифт">Arial</button>
+                <div class="font-family-popover">
+                    <div class="font-family-popover-inner">
+                        <button type="button" class="font-family-item" data-font="Arial" style="font-family:Arial">Arial</button>
+                        <button type="button" class="font-family-item" data-font="Times New Roman" style="font-family:'Times New Roman'">Times New Roman</button>
+                        <button type="button" class="font-family-item" data-font="Open Sans" style="font-family:'Open Sans'">Open Sans</button>
+                        <button type="button" class="font-family-item" data-font="Verdana" style="font-family:Verdana">Verdana</button>
+                        <button type="button" class="font-family-item" data-font="Helvetica" style="font-family:Helvetica">Helvetica</button>
+                        <button type="button" class="font-family-item" data-font="Georgia" style="font-family:Georgia">Georgia</button>
+                        <button type="button" class="font-family-item" data-font="PT Sans" style="font-family:'PT Sans'">PT Sans</button>
+                        <button type="button" class="font-family-item" data-font="Comic Sans MS" style="font-family:'Comic Sans MS'">Comic Sans MS</button>
+                        <div class="font-family-custom">
+                            <button type="button" onclick="openCustomFontsModal()">📁 Свой шрифт</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="color-picker-wrap" id="colorPickerWrapMain">
+                <button type="button" class="color-picker-btn" title="Цвет текста" aria-label="Цвет текста"><span class="color-preview" style="background:#333;"></span></button>
+                <div class="color-palette-popover">
+                    <div class="color-palette-grid" id="colorPaletteGridMain"></div>
+                    <div class="color-palette-custom">
+                        <label>Свой цвет <input type="color" id="textColorCustomMain" value="#333333"></label>
+                    </div>
+                </div>
+            </div>
+            
+            <span class="toolbar-divider" id="divider-more"></span>
+            
+            <div class="more-menu-wrap" id="moreMenuWrap">
+                <button type="button" class="format-btn" title="Прочее" onclick="toggleMoreMenu()">⋯</button>
+                <div class="more-menu-dropdown" id="moreMenuDropdown">
+                    <button type="button" class="more-menu-item" onclick="saveDraft()">Сохранить в черновик</button>
+                    <button type="button" class="more-menu-item has-submenu" onclick="toggleDraftsSubmenu(event)">
+                        Черновики
+                        <div class="more-submenu" id="draftsSubmenu">
+                            <div class="more-submenu-empty">Загрузка...</div>
+                        </div>
+                    </button>
+                    <button type="button" class="more-menu-item" onclick="openSaveInclude()">Сохранить в includes</button>
+                    <button type="button" class="more-menu-item has-submenu" onclick="toggleIncludesSubmenu(event)">
+                        Вставить
+                        <div class="more-submenu" id="includesSubmenu">
+                            <div class="more-submenu-empty">Загрузка...</div>
+                        </div>
+                    </button>
+                    <button type="button" class="more-menu-item has-submenu" onclick="toggleArticlesSubmenu(event)">
+                        Вставить ссылку на статью
+                        <div class="more-submenu" id="articlesSubmenu">
+                            <div class="more-submenu-empty">Загрузка...</div>
+                        </div>
+                    </button>
+                    <button type="button" class="more-menu-item has-submenu" onclick="toggleTocSubmenu(event)">
+                        Содержание
+                        <div class="more-submenu" id="tocSubmenu">
+                            <div class="more-submenu-empty">Нет якорей в статье</div>
+                        </div>
+                    </button>
+                    <button type="button" class="more-menu-item" onclick="openFileUploadDialog()">Загрузить файл</button>
+                    <button type="button" class="more-menu-item" onclick="insertCode()">Вставить блок кода</button>
+                    <button type="button" class="more-menu-item" onclick="openSmileSetsDialog()">Наборы смайлов</button>
+                    <button type="button" class="more-menu-item has-submenu" onclick="toggleSmilesSubmenu(event)">
+                        Смайлы
+                        <div class="more-submenu" id="smilesSubmenu">
+                            <div class="more-submenu-empty">Загрузка...</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            </div>
+            <div id="toolbar-row-2" class="toolbar-row" data-placeholder="Ряд 2"></div>
         </div>
         
         <div class="header-right">
@@ -291,6 +284,7 @@ if (file_exists($settingsFile)) {
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openTemplateManager()">Менеджер шаблонов</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openGlobalSettings()">Параметры</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openBackupManager()">Менеджер бэкапов</button>
+                    <button type="button" class="editor-menu-item" role="menuitem" onclick="openAutosaveManager()">Менеджер автосохранений</button>
                     <button type="button" class="editor-menu-item" id="theme-toggle" role="menuitem">Изменить тему</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='ftp.php'">Опубликовать по FTP</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='<?php echo getDataUrl('blog.html'); ?>'">Перейти к Blog.html</button>
@@ -298,7 +292,7 @@ if (file_exists($settingsFile)) {
                     <?php if (!empty($passwordHash)): ?>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="lockEditor()" style="color: #ef4444; font-weight: 600; border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 8px;">Заблокировать</button>
                     <?php endif; ?>
-                    <div class="editor-menu-version">ver 2.205.13</div>
+                    <div class="editor-menu-version">ver 2.213.2</div>
                 </div>
             </div>
         </div>
@@ -354,7 +348,7 @@ if (file_exists($settingsFile)) {
                     <button type="button" class="action-btn" onclick="triggerTemplateUpload()" style="padding: 6px 12px; background: var(--primary-color, #4CAF50); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
                         📥 Загрузить шаблон
                     </button>
-                    <input type="file" id="templateFileInput" accept=".html" style="display: none;" onchange="handleTemplateUpload(this)">
+                    <input type="file" id="templateFileInput" accept=".html,.htm,.zip" multiple style="display: none;" onchange="handleTemplateUpload(this)">
                     <button type="button" class="close-btn" onclick="closeTemplateManager()" style="background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.6; line-height: 1; padding: 4px;">×</button>
                 </div>
             </div>
@@ -1011,10 +1005,10 @@ if (file_exists($settingsFile)) {
         <!-- Навигация слева -->
         <div style="width: 200px; background: rgba(0,0,0,0.05); border-right: 2px solid var(--border-color); padding: 20px; overflow-y: auto;">
             <h3 style="margin: 0 0 20px 0; color: var(--text-color); font-size: 18px;">Навигация</h3>
-            <button type="button" onclick="showGlobalSection('backgrounds')" class="global-nav-btn active" data-section="backgrounds" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
+            <button type="button" id="nav-btn-backgrounds" onclick="showGlobalSection('backgrounds')" class="global-nav-btn active" data-section="backgrounds" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
                 Фон статей
             </button>
-            <button type="button" onclick="showGlobalSection('blogview')" class="global-nav-btn" data-section="blogview" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
+            <button type="button" id="nav-btn-blogview" onclick="showGlobalSection('blogview')" class="global-nav-btn" data-section="blogview" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
                 Вид blog.html
             </button>
             <button type="button" onclick="showGlobalSection('autosave')" class="global-nav-btn" data-section="autosave" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
@@ -1165,10 +1159,7 @@ if (file_exists($settingsFile)) {
                 <p style="color: var(--text-color); margin-bottom: 20px; opacity: 0.8;">Настройте внешний вид редактора статей.</p>
                 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
-                        <input type="checkbox" id="hideEditorModeButtons" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
-                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Скрыть кнопки "Визуально" и "Код"</span>
-                    </label>
+
                     
                     <label style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
                         <input type="checkbox" id="amoledTheme" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
@@ -1191,6 +1182,7 @@ if (file_exists($settingsFile)) {
                     </div>
                     
                     <button type="button" onclick="saveAppearanceSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки</button>
+                    <button type="button" onclick="startHeaderCustomization()" class="global-action-btn global-action-btn-accent" style="margin-left: 8px;">Кастомизация верхней панели</button>
                 </div>
                 
                 <div style="padding: 15px; background: rgba(33, 150, 243, 0.1); border: 2px solid rgba(33, 150, 243, 0.3); border-radius: 8px; margin-top: 20px;">
@@ -1224,6 +1216,7 @@ if (file_exists($settingsFile)) {
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button type="button" onclick="checkPostNumbering()" class="global-action-btn global-action-btn-primary">Проверка нумерации</button>
                         <button type="button" onclick="resetTutorial()" class="global-action-btn global-action-btn-secondary">Сбросить обучение</button>
+                        <button type="button" onclick="deleteAllCustomTemplates()" class="global-action-btn" style="background-color: #ef4444; color: #fff; border-color: #ef4444;">Удалить кастомные шаблоны</button>
                     </div>
                 </div>
                 
@@ -1895,6 +1888,54 @@ function saveOverlaySettings() {
 }
 
 // Глобальные параметры
+function checkTemplateAndToggleTabs() {
+    return new Promise((resolve) => {
+        const editId = (typeof window.getCurrentEditId === 'function') ? window.getCurrentEditId() : null;
+        
+        fetch('get_templates.php?t=' + Date.now())
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const defaultTemplate = data.default || 'main';
+                    const postTemplates = data.post_templates || {};
+                    
+                    const activeTemplate = (editId && postTemplates[editId])
+                                           ? postTemplates[editId]
+                                           : defaultTemplate;
+                    
+                    const isCustom = (activeTemplate && activeTemplate !== 'main');
+                    
+                    const btnBackgrounds = document.getElementById('nav-btn-backgrounds');
+                    const btnBlogview = document.getElementById('nav-btn-blogview');
+                    
+                    if (isCustom) {
+                        if (btnBackgrounds) btnBackgrounds.style.display = 'none';
+                        if (btnBlogview) btnBlogview.style.display = 'none';
+                        
+                        // Если в данный момент активна скрываемая вкладка, переключаем на 'autosave'
+                        const activeBtn = document.querySelector('.global-nav-btn.active');
+                        if (activeBtn) {
+                            const sec = activeBtn.dataset.section;
+                            if (sec === 'backgrounds' || sec === 'blogview') {
+                                showGlobalSection('autosave');
+                            }
+                        }
+                    } else {
+                        if (btnBackgrounds) btnBackgrounds.style.display = 'block';
+                        if (btnBlogview) btnBlogview.style.display = 'block';
+                    }
+                    resolve(isCustom);
+                } else {
+                    resolve(false);
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка проверки шаблонов:', err);
+                resolve(false);
+            });
+    });
+}
+
 function openGlobalSettings() {
     const modal = document.getElementById('globalSettingsModal');
     modal.style.display = 'flex';
@@ -1904,7 +1945,9 @@ function openGlobalSettings() {
         modal.classList.add('show');
     }, 10);
     
-    loadGlobalBackground();
+    checkTemplateAndToggleTabs().then(() => {
+        loadGlobalBackground();
+    });
 }
 
 function closeGlobalSettings() {
@@ -1918,6 +1961,10 @@ function closeGlobalSettings() {
 }
 
 function showGlobalSection(sectionName) {
+    const btn = document.getElementById('nav-btn-' + sectionName);
+    if (btn && btn.style.display === 'none') {
+        return;
+    }
     // Обновляем активную кнопку навигации
     document.querySelectorAll('.global-nav-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -3038,6 +3085,18 @@ function loadAndApplyAllSettings() {
                         togglePasswordFieldsVisibility();
                     }
                 }
+                if (typeof applyHeaderLayout === 'function') {
+                    applyHeaderLayout(settings.headerLayout);
+                }
+                
+                // Автоматическое обновление высоты хедера в зависимости от кнопок во втором ряду
+                if (typeof updateHeaderHeightState === 'function') {
+                    updateHeaderHeightState();
+                }
+                
+                if (typeof adjustHeaderPadding === 'function') {
+                    adjustHeaderPadding();
+                }
             }
         })
         .catch(error => {
@@ -3051,7 +3110,8 @@ function loadAppearanceSettings() {
 }
 
 function saveAppearanceSettings() {
-    const hideButtons = document.getElementById('hideEditorModeButtons').checked;
+    const hideModeCheck = document.getElementById('hideEditorModeButtons');
+    const hideButtons = hideModeCheck ? hideModeCheck.checked : false;
     const amoled = document.getElementById('amoledTheme').checked;
     const smooth = document.getElementById('smoothTyping').checked;
     const headerBottom = document.getElementById('headerBottomPosition').checked;
@@ -3120,6 +3180,35 @@ function saveExperimentalSettings() {
     .catch(error => {
         console.error('Ошибка:', error);
         showAlert('Ошибка сохранения настроек');
+    });
+}
+
+function deleteAllCustomTemplates() {
+    showConfirm('Вы действительно хотите безвозвратно удалить ВСЕ кастомные шаблоны? Стандартный шаблон NPBlog будет сохранен.').then(confirmed => {
+        if (!confirmed) return;
+        
+        showNotification('Удаление кастомных шаблонов...', 'info');
+        
+        fetch('delete_custom_templates.php', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Все кастомные шаблоны успешно удалены', 'success');
+                // Обновляем список шаблонов в менеджере, если он открыт
+                const templateDialog = document.getElementById('templateManagerDialog');
+                if (typeof openTemplateManager === 'function' && templateDialog && templateDialog.style.display === 'block') {
+                    openTemplateManager();
+                }
+            } else {
+                showAlert('Ошибка удаления: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            showAlert('Ошибка сети при удалении шаблонов');
+        });
     });
 }
 
@@ -4175,8 +4264,657 @@ document.addEventListener('DOMContentLoaded', function() {
                 undoImgEditorState();
             }
         }
-});
+    });
+
+    // Динамический расчет высоты фиксированного хедера и автоматическое применение padding к body
+    function adjustHeaderPadding() {
+        const header = document.querySelector('.editor-header');
+        if (!header) return;
+        
+        const height = header.offsetHeight;
+        const gap = 15; // Небольшой отступ между хедером и рабочей областью
+        
+        if (document.body.classList.contains('header-bottom')) {
+            document.body.style.setProperty('padding-top', '0px', 'important');
+            document.body.style.setProperty('padding-bottom', (height + gap) + 'px', 'important');
+        } else {
+            document.body.style.setProperty('padding-top', (height + gap) + 'px', 'important');
+            document.body.style.setProperty('padding-bottom', '0px', 'important');
+        }
+    }
+    
+    // Динамическое обновление высоты хедера в зависимости от наличия кнопок во втором ряду
+    function updateHeaderHeightState() {
+        const row2 = document.getElementById('toolbar-row-2');
+        const header = document.querySelector('.editor-header');
+        if (!row2 || !header) return;
+        
+        // В режиме кастомизации всегда показываем оба ряда
+        if (document.body.classList.contains('header-customizing')) {
+            document.body.classList.add('header-two-rows');
+            header.style.height = '108px';
+            if (typeof adjustHeaderPadding === 'function') {
+                adjustHeaderPadding();
+            }
+            return;
+        }
+        
+        // Проверяем, есть ли видимые элементы во втором ряду
+        const visibleItems = Array.from(row2.children).filter(el => {
+            return el.id && !el.classList.contains('customizer-hidden');
+        });
+        
+        if (visibleItems.length > 0) {
+            document.body.classList.add('header-two-rows');
+            header.style.height = '108px';
+        } else {
+            document.body.classList.remove('header-two-rows');
+            header.style.height = ''; // возвращается к 64px по CSS
+        }
+        
+        if (typeof adjustHeaderPadding === 'function') {
+            adjustHeaderPadding();
+        }
+    }
+    
+    // Слушатели изменения размера экрана и полной загрузки для обновления отступа
+    window.addEventListener('resize', adjustHeaderPadding);
+    window.addEventListener('load', adjustHeaderPadding);
+    document.addEventListener('DOMContentLoaded', adjustHeaderPadding);
+    // Дополнительный запуск с задержкой на случай ленивой подгрузки элементов
+    setTimeout(adjustHeaderPadding, 100);
+    setTimeout(adjustHeaderPadding, 500);
+
+    // --- КАСТОМИЗАЦИЯ ВЕРХНЕЙ ПАНЕЛИ ---
+
+    // Применяет сохраненный порядок и видимость кнопок хедера
+    function applyHeaderLayout(layout) {
+        const container = document.querySelector('.header-left');
+        if (!container) return;
+        
+        const row1 = document.getElementById('toolbar-row-1');
+        const row2 = document.getElementById('toolbar-row-2');
+        const dropdown = document.getElementById('moreMenuDropdown');
+        
+        const defaultIds = [
+            'logoDivider',
+            'headerModeToggle',
+            'modeActionsDivider',
+            'headerEditorActions',
+            'actionsFormattingDivider',
+            'btn-bold',
+            'btn-italic',
+            'btn-underline',
+            'btn-strike',
+            'btn-sup',
+            'btn-sub',
+            'btn-h2',
+            'btn-table',
+            'btn-spoiler',
+            'btn-marker',
+            'btn-anchor',
+            'divider-align',
+            'btn-align-left',
+            'btn-align-center',
+            'btn-align-right',
+            'divider-media',
+            'btn-link',
+            'btn-image',
+            'btn-media',
+            'btn-ascii',
+            'divider-fonts',
+            'fontSizeWrapMain',
+            'fontFamilyWrapMain',
+            'colorPickerWrapMain',
+            'divider-more',
+            'moreMenuWrap'
+        ];
+        
+        if (layout && Array.isArray(layout) && layout.length > 0) {
+            layout.forEach(item => {
+                let el = document.getElementById(item.id);
+                if (!el && item.id && item.id.startsWith('divider-')) {
+                    el = document.createElement('span');
+                    if (item.id.includes('-spacer-')) {
+                        el.className = 'toolbar-spacer';
+                        el.style.width = (item.width || 32) + 'px';
+                    } else {
+                        el.className = 'toolbar-divider';
+                    }
+                    el.id = item.id;
+                } else if (el && item.id.includes('-spacer-') && item.width) {
+                    el.style.width = item.width + 'px';
+                }
+                if (el) {
+                    if (item.visible === false) {
+                        el.classList.add('customizer-hidden');
+                    } else {
+                        el.classList.remove('customizer-hidden');
+                    }
+                    
+                    if (item.inDropdown === true && dropdown) {
+                        dropdown.appendChild(el);
+                    } else {
+                        const targetRow = (item.row === 2 && row2) ? row2 : row1;
+                        if (targetRow) targetRow.appendChild(el);
+                    }
+                }
+            });
+            
+            // Failsafe: добавляем элементы, которых нет в сохраненном layout
+            defaultIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && !layout.some(item => item.id === id)) {
+                    el.classList.remove('customizer-hidden');
+                    if (row1) row1.appendChild(el);
+                }
+            });
+        } else {
+            // Дефолтное состояние
+            defaultIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && row1) {
+                    el.classList.remove('customizer-hidden');
+                    row1.appendChild(el);
+                }
+            });
+        }
+        
+        adjustHeaderPadding();
+    }
+
+    // Сохранение временного состояния перед входом в режим кастомизации
+    let originalHeaderHTML = '';
+    let originalDropdownHTML = '';
+    
+    function startHeaderCustomization() {
+        // Закрываем модалку настроек
+        closeGlobalSettings();
+        
+        const container = document.querySelector('.header-left');
+        const dropdown = document.getElementById('moreMenuDropdown');
+        if (!container) return;
+        
+        // Сохраняем исходное состояние для отмены
+        originalHeaderHTML = container.innerHTML;
+        originalDropdownHTML = dropdown ? dropdown.innerHTML : '';
+        
+        // Входим в режим редактирования
+        document.body.classList.add('header-customizing');
+        document.getElementById('headerCustomizerBar').style.display = 'flex';
+        
+        // Расширяем панель до двух строк во время редактирования
+        if (typeof updateHeaderHeightState === 'function') {
+            updateHeaderHeightState();
+        }
+        
+        const draggableItems = [];
+        container.querySelectorAll('.toolbar-row > *:not(.header-logo)').forEach(el => {
+            if (el.id) draggableItems.push(el);
+        });
+        if (dropdown) {
+            dropdown.querySelectorAll('*').forEach(el => {
+                if (el.id && el.parentNode === dropdown) {
+                    draggableItems.push(el);
+                }
+            });
+        }
+        
+        draggableItems.forEach(item => {
+            item.setAttribute('draggable', 'true');
+            if (item.classList.contains('toolbar-spacer')) {
+                makeSpacerResizable(item);
+            }
+            
+            // Обработчики Drag and Drop
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragend', handleDragEnd);
+            
+            // Обработчик правого клика (ПКМ) для контекстного меню
+            item.addEventListener('contextmenu', handleRightClick);
+        });
+        
+        adjustHeaderPadding();
+    }
+    
+    let dragSrcEl = null;
+    
+    function handleDragStart(e) {
+        if (!document.body.classList.contains('header-customizing')) return;
+        dragSrcEl = this;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.id);
+        
+        // Откладываем добавление класса, чтобы браузер успел сделать снимок "призрака" для перетаскивания
+        setTimeout(() => {
+            this.classList.add('dragging');
+        }, 0);
+    }
+    
+    function handleDragOver(e) {
+        if (!document.body.classList.contains('header-customizing')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        const draggingEl = document.querySelector('.dragging');
+        if (!draggingEl || draggingEl === this || this.classList.contains('header-logo')) return;
+        
+        const container = this.parentNode;
+        const children = Array.from(container.children);
+        const fromIndex = children.indexOf(draggingEl);
+        const toIndex = children.indexOf(this);
+        
+        if (fromIndex < toIndex) {
+            container.insertBefore(draggingEl, this.nextSibling);
+        } else {
+            container.insertBefore(draggingEl, this);
+        }
+        
+        adjustHeaderPadding();
+        return false;
+    }
+    
+    function handleDrop(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        const container = document.querySelector('.header-left');
+        const dropdown = document.getElementById('moreMenuDropdown');
+        if (container) {
+            container.querySelectorAll('.toolbar-row > *').forEach(item => {
+                item.style.opacity = '';
+            });
+        }
+        if (dropdown) {
+            dropdown.querySelectorAll('*').forEach(item => {
+                item.style.opacity = '';
+            });
+        }
+        adjustHeaderPadding();
+    }
+    
+    function handleRightClick(e) {
+        if (!document.body.classList.contains('header-customizing')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const dropdown = document.getElementById('moreMenuDropdown');
+        let target = e.target;
+        while (target && target.parentNode && !target.parentNode.classList.contains('toolbar-row') && target.parentNode !== dropdown) {
+            target = target.parentNode;
+        }
+        
+        if (!target || !target.id) return;
+        
+        const menu = document.getElementById('customizerContextMenu');
+        if (!menu) return;
+        
+        // Позиционируем и показываем кастомное меню
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        menu.style.display = 'block';
+        
+        // Обновляем пункт Скрыть/Показать / Удалить (для кастомных разделителей)
+        const visibilityBtn = document.getElementById('ctxToggleVisibility');
+        if (target.id.startsWith('divider-custom-')) {
+            visibilityBtn.innerText = 'Удалить';
+        } else if (target.classList.contains('customizer-hidden')) {
+            visibilityBtn.innerText = 'Показать';
+        } else {
+            visibilityBtn.innerText = 'Скрыть';
+        }
+        
+        // Обновляем пункт Переместить в меню / Вернуть на панель
+        const positionBtn = document.getElementById('ctxTogglePosition');
+        if (target.id.startsWith('divider-')) {
+            // Разделители нельзя помещать в выпадающее меню
+            positionBtn.style.display = 'none';
+        } else {
+            positionBtn.style.display = 'block';
+            if (target.parentNode === dropdown) {
+                positionBtn.innerText = 'Вернуть на панель';
+            } else {
+                positionBtn.innerText = 'Перенести в "Прочее"';
+            }
+        }
+        
+        // Обработчики действий контекстного меню
+        visibilityBtn.onclick = function() {
+            if (target.id.startsWith('divider-custom-')) {
+                target.remove();
+                showNotification('Разделитель удален', 'info');
+            } else {
+                if (target.classList.contains('customizer-hidden')) {
+                    target.classList.remove('customizer-hidden');
+                    showNotification('Элемент включен', 'success');
+                } else {
+                    target.classList.add('customizer-hidden');
+                    showNotification('Элемент скрыт', 'info');
+                }
+            }
+            menu.style.display = 'none';
+            adjustHeaderPadding();
+        };
+        
+        positionBtn.onclick = function() {
+            if (target.parentNode === dropdown) {
+                // Возвращаем на главную панель (в первый ряд по умолчанию)
+                const row1 = document.getElementById('toolbar-row-1');
+                if (row1) {
+                    const dividerMore = document.getElementById('divider-more');
+                    if (dividerMore && dividerMore.parentNode === row1) {
+                        row1.insertBefore(target, dividerMore);
+                    } else {
+                        row1.appendChild(target);
+                    }
+                }
+                showNotification('Элемент возвращен на панель', 'success');
+            } else {
+                // Переносим в выпадающее меню
+                if (dropdown) {
+                    dropdown.appendChild(target);
+                    showNotification('Элемент перенесен в меню "Прочее"', 'info');
+                }
+            }
+            menu.style.display = 'none';
+            adjustHeaderPadding();
+        };
+    }
+    
+    function makeSpacerResizable(spacer) {
+        let handle = spacer.querySelector('.spacer-resize-handle');
+        if (!handle) {
+            handle = document.createElement('span');
+            handle.className = 'spacer-resize-handle';
+            spacer.appendChild(handle);
+        }
+        
+        handle.addEventListener('mousedown', (e) => {
+            if (!document.body.classList.contains('header-customizing')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Отключаем draggable на время ресайза, чтобы браузер не начинал drag-and-drop!
+            spacer.setAttribute('draggable', 'false');
+            
+            const startWidth = spacer.offsetWidth;
+            const startX = e.clientX;
+            
+            function onMouseMove(moveEvent) {
+                const deltaX = moveEvent.clientX - startX;
+                let newWidth = startWidth + deltaX;
+                if (newWidth < 16) newWidth = 16;
+                if (newWidth > 300) newWidth = 300;
+                spacer.style.width = newWidth + 'px';
+            }
+            
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                spacer.setAttribute('draggable', 'true');
+                adjustHeaderPadding();
+            }
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    }
+
+    function toggleDividerDropdown(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('dividerDropdownMenu');
+        if (!menu) return;
+        if (menu.style.display === 'block') {
+            menu.style.display = 'none';
+        } else {
+            menu.style.display = 'block';
+        }
+    }
+
+    function createCustomDivider(type) {
+        const row1 = document.getElementById('toolbar-row-1');
+        if (!row1) return;
+        
+        const divider = document.createElement('span');
+        if (type === 'spacer') {
+            divider.className = 'toolbar-spacer';
+            divider.id = 'divider-custom-spacer-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            divider.style.width = '32px';
+        } else {
+            divider.className = 'toolbar-divider';
+            divider.id = 'divider-custom-line-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        }
+        
+        // Свойства перетаскивания для нового разделителя
+        divider.setAttribute('draggable', 'true');
+        divider.addEventListener('dragstart', handleDragStart);
+        divider.addEventListener('dragover', handleDragOver);
+        divider.addEventListener('drop', handleDrop);
+        divider.addEventListener('dragend', handleDragEnd);
+        divider.addEventListener('contextmenu', handleRightClick);
+        
+        if (type === 'spacer') {
+            makeSpacerResizable(divider);
+        }
+        
+        row1.appendChild(divider);
+        adjustHeaderPadding();
+        
+        const label = type === 'spacer' ? 'Пустой разделитель' : 'Разделитель';
+        showNotification(label + ' добавлен. Перетащите его в нужное место.', 'success');
+        
+        const dividerMenu = document.getElementById('dividerDropdownMenu');
+        if (dividerMenu) dividerMenu.style.display = 'none';
+    }
+    
+    function exitHeaderCustomizationMode() {
+        document.body.classList.remove('header-customizing');
+        document.getElementById('headerCustomizerBar').style.display = 'none';
+        
+        const container = document.querySelector('.header-left');
+        const dropdown = document.getElementById('moreMenuDropdown');
+        
+        const draggableItems = [];
+        if (container) {
+            container.querySelectorAll('.toolbar-row > *').forEach(item => {
+                if (item.id) draggableItems.push(item);
+            });
+        }
+        if (dropdown) {
+            dropdown.querySelectorAll('*').forEach(item => {
+                if (item.id && item.parentNode === dropdown) {
+                    draggableItems.push(item);
+                }
+            });
+        }
+        
+        draggableItems.forEach(item => {
+            if (item && item.removeAttribute) {
+                item.removeAttribute('draggable');
+                item.removeEventListener('dragstart', handleDragStart);
+                item.removeEventListener('dragover', handleDragOver);
+                item.removeEventListener('drop', handleDrop);
+                item.removeEventListener('dragend', handleDragEnd);
+                item.removeEventListener('contextmenu', handleRightClick);
+                
+                if (item.classList.contains('toolbar-spacer')) {
+                    const handle = item.querySelector('.spacer-resize-handle');
+                    if (handle) handle.remove();
+                }
+            }
+        });
+        
+        adjustHeaderPadding();
+    }
+    
+    function cancelHeaderCustomization() {
+        exitHeaderCustomizationMode();
+        
+        const container = document.querySelector('.header-left');
+        const dropdown = document.getElementById('moreMenuDropdown');
+        if (container && originalHeaderHTML) {
+            container.innerHTML = originalHeaderHTML;
+        }
+        if (dropdown && originalDropdownHTML) {
+            dropdown.innerHTML = originalDropdownHTML;
+        }
+        
+        // Загружаем сохраненный макет заново
+        loadAndApplyAllSettings();
+    }
+    
+    function saveHeaderCustomization() {
+        const layout = [];
+        const container = document.querySelector('.header-left');
+        const dropdown = document.getElementById('moreMenuDropdown');
+        
+        if (container) {
+            const row1 = document.getElementById('toolbar-row-1');
+            if (row1) {
+                row1.querySelectorAll('#toolbar-row-1 > *').forEach(el => {
+                    if (el.id) {
+                        const itemObj = {
+                            id: el.id,
+                            name: el.title || el.innerText || el.id,
+                            visible: !el.classList.contains('customizer-hidden'),
+                            inDropdown: false,
+                            row: 1
+                        };
+                        if (el.classList.contains('toolbar-spacer')) {
+                            itemObj.width = parseInt(el.style.width) || el.offsetWidth || 32;
+                        }
+                        layout.push(itemObj);
+                    }
+                });
+            }
+            const row2 = document.getElementById('toolbar-row-2');
+            if (row2) {
+                row2.querySelectorAll('#toolbar-row-2 > *').forEach(el => {
+                    if (el.id) {
+                        const itemObj = {
+                            id: el.id,
+                            name: el.title || el.innerText || el.id,
+                            visible: !el.classList.contains('customizer-hidden'),
+                            inDropdown: false,
+                            row: 2
+                        };
+                        if (el.classList.contains('toolbar-spacer')) {
+                            itemObj.width = parseInt(el.style.width) || el.offsetWidth || 32;
+                        }
+                        layout.push(itemObj);
+                    }
+                });
+            }
+        }
+        
+        if (dropdown) {
+            dropdown.querySelectorAll('*').forEach(el => {
+                if (el.id && el.parentNode === dropdown) {
+                    layout.push({
+                        id: el.id,
+                        name: el.title || el.innerText || el.id,
+                        visible: !el.classList.contains('customizer-hidden'),
+                        inDropdown: true
+                    });
+                }
+            });
+        }
+        
+        // Автоматически определяем двухрядность на основе видимых кнопок во втором ряду
+        const isTwoRowsActive = layout.some(item => item.row === 2 && item.visible === true);
+        const currentHeaderHeight = isTwoRowsActive ? 108 : 64;
+        
+        fetch('save_editor_settings.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                headerLayout: layout,
+                headerHeight: currentHeaderHeight,
+                headerTwoRows: isTwoRowsActive
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Раскладка панели успешно сохранена', 'success');
+                exitHeaderCustomizationMode();
+                if (typeof updateHeaderHeightState === 'function') {
+                    updateHeaderHeightState();
+                }
+            } else {
+                showAlert('Ошибка сохранения: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Ошибка сохранения:', err);
+            showAlert('Ошибка сети при сохранении раскладки');
+        });
+    }
+
+    // Инициализация Drag and Drop для пустых рядов хедера
+    document.addEventListener('DOMContentLoaded', () => {
+        const rows = [document.getElementById('toolbar-row-1'), document.getElementById('toolbar-row-2')];
+        rows.forEach(row => {
+            if (row) {
+                row.addEventListener('dragover', (e) => {
+                    if (!document.body.classList.contains('header-customizing')) return;
+                    e.preventDefault();
+                    
+                    const draggingEl = document.querySelector('.dragging');
+                    if (!draggingEl || draggingEl.contains(row) || row.contains(draggingEl)) return;
+                    
+                    // Если перетаскиваем на сам контейнер ряда или его псевдоэлемент, переносим в этот ряд
+                    const isOverRow = e.target === row || e.target.classList.contains('toolbar-row') || e.target.closest('.toolbar-row') === row;
+                    if (isOverRow) {
+                        const hoveredItem = e.target.closest('.toolbar-row > *');
+                        if (!hoveredItem || hoveredItem === draggingEl) {
+                            row.appendChild(draggingEl);
+                            adjustHeaderPadding();
+                        }
+                    }
+                });
+            }
+        });
+    });
+
+    // Закрытие контекстных меню при клике в любое место
+    document.addEventListener('click', function() {
+        const menu = document.getElementById('customizerContextMenu');
+        if (menu) menu.style.display = 'none';
+        const dividerMenu = document.getElementById('dividerDropdownMenu');
+        if (dividerMenu) dividerMenu.style.display = 'none';
+    });
 </script>
+
+<!-- Панель управления кастомизацией хедера -->
+<div id="headerCustomizerBar" style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-color); border: 2px solid var(--primary-color, #4CAF50); border-radius: 12px; padding: 16px 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.35); z-index: 10005; align-items: center; gap: 16px; box-sizing: border-box; flex-wrap: wrap; justify-content: center;">
+    <span style="color: var(--text-color); font-weight: 600; font-size: 14px; margin-right: 8px;">Режим редактирования панели: перетаскивайте кнопки, ПКМ — меню опций.</span>
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="position: relative; display: inline-block;">
+            <button type="button" onclick="toggleDividerDropdown(event)" class="global-action-btn global-action-btn-accent" style="padding: 8px 16px; border-width: 1px;">+ Разделитель</button>
+            <div id="dividerDropdownMenu" class="customizer-dropdown-menu" style="display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); z-index: 10006; min-width: 180px; padding: 4px 0;">
+                <div class="customizer-dropdown-item" onclick="createCustomDivider('line')" style="padding: 10px 16px; cursor: pointer; color: var(--text-color); font-size: 13px; font-weight: 500; text-align: left; transition: background 0.2s;">Обычный разделитель</div>
+                <div class="customizer-dropdown-item" onclick="createCustomDivider('spacer')" style="padding: 10px 16px; cursor: pointer; color: var(--text-color); font-size: 13px; font-weight: 500; text-align: left; transition: background 0.2s;">Пустой разделитель</div>
+            </div>
+        </div>
+        <button type="button" onclick="saveHeaderCustomization()" class="global-action-btn global-action-btn-primary" style="padding: 8px 16px; border-width: 1px;">Применить</button>
+        <button type="button" onclick="cancelHeaderCustomization()" class="global-action-btn global-action-btn-secondary" style="padding: 8px 16px; border-width: 1px;">Отмена</button>
+    </div>
+</div>
+
+<!-- Контекстное меню для кастомизации хедера -->
+<div id="customizerContextMenu" style="display: none; position: fixed; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 100007; min-width: 180px; padding: 4px 0;">
+    <button type="button" id="ctxToggleVisibility" class="context-menu-item" style="display: block; width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; color: var(--text-color); cursor: pointer; font-size: 14px; font-weight: 500;">Скрыть</button>
+    <button type="button" id="ctxTogglePosition" class="context-menu-item" style="display: block; width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; color: var(--text-color); cursor: pointer; font-size: 14px; font-weight: 500;">Перенести в "Прочее"</button>
+</div>
 
 </body>
 </html>

@@ -4,13 +4,8 @@ require_once __DIR__ . '/security_bootstrap.php';
 header('Content-Type: text/plain; charset=utf-8');
 
 $blogDir = getDataPath('blog/');
-$templateFile = getDataPath('blog/template_post.html');
-
-if (!file_exists($templateFile)) {
-    die("Ошибка: Файл шаблона $templateFile не найден.\n");
-}
-
-$templateHtml = file_get_contents($templateFile);
+require_once __DIR__ . '/templates_helper.php';
+initTemplatesSystem();
 
 require_once 'get_custom_fonts_css.php';
 $customFontsCss = getCustomFontsCss();
@@ -83,15 +78,24 @@ foreach ($files as $file) {
     $content = preg_replace('/(?:https?:\/\/[^\/]+)?(?:\/)?serve_data.php\?file=/i', $staticPrefix, $content);
     $content = preg_replace('/(?:[?&]|&amp;)t=\d+/i', '', $content);
 
+    // Получаем и загружаем шаблон для статьи
+    $postTemplateFile = getTemplatePath($postId);
+    if (!file_exists($postTemplateFile)) {
+        echo "ПРЕДУПРЕЖДЕНИЕ: Файл шаблона $postTemplateFile не найден для статьи #$postId. Пропуск.\n";
+        $skippedCount++;
+        continue;
+    }
+    $postTemplateHtml = getTemplateHtml($postTemplateFile);
+
     // Создаем новый HTML на основе шаблона
     require_once 'seo_helper.php';
     $seoMetaBlock = generateSeoMetaTagsBlock($postId, $title, $content);
     
-    $newHtml = str_replace('{{POST_ID}}', $postId, $templateHtml);
+    $newHtml = str_replace('{{POST_ID}}', $postId, $postTemplateHtml);
     $newHtml = str_replace('{{TITLE}}', htmlspecialchars($title), $newHtml);
     $newHtml = str_replace('{{DATE}}', htmlspecialchars($date), $newHtml);
     $newHtml = str_replace('{{META_TAGS}}', $seoMetaBlock, $newHtml);
-    $newHtml = str_replace('{{CUSTOM_FONTS}}', $customFontsCss, $newHtml);
+    $newHtml = replaceCustomFontsPlaceholder($newHtml, $customFontsCss);
 
     $editorSettingsFile = __DIR__ . '/editor_settings.json';
     $editorSettings = [];

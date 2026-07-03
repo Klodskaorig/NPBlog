@@ -181,9 +181,7 @@ if (!function_exists('renderIpBlockedPage')) {
                 <h1>Доступ ограничен</h1>
                 <p>Ваш IP-адрес не входит в список разрешенных адресов для входа в панель управления NPBlog.</p>
                 <div class="ip-box"><?php echo htmlspecialchars($clientIp); ?></div>
-                <div class="hint-text">
-                    Для получения доступа добавьте данный IP-адрес в файл <code>allowed_ips.txt</code> в корневого каталоге проекта или обратитесь к администратору.
-                </div>
+
             </div>
         </body>
         </html>

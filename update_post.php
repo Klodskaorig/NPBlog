@@ -106,7 +106,7 @@ if (!file_exists($templateFile)) {
     exit;
 }
 
-$articleHtml = file_get_contents($templateFile);
+$articleHtml = getTemplateHtml($templateFile);
 
 // Подготавливаем данные
 $title = htmlspecialchars($data['title']);
@@ -125,7 +125,7 @@ $articleHtml = str_replace('{{POST_ID}}', $postId, $articleHtml);
 $articleHtml = str_replace('{{TITLE}}', $title, $articleHtml);
 $articleHtml = str_replace('{{DATE}}', $displayDate, $articleHtml);
 $articleHtml = str_replace('{{META_TAGS}}', $seoMetaBlock, $articleHtml);
-$articleHtml = str_replace('{{CUSTOM_FONTS}}', $customFontsCss, $articleHtml);
+$articleHtml = replaceCustomFontsPlaceholder($articleHtml, $customFontsCss);
 
 $editorSettingsFile = __DIR__ . '/editor_settings.json';
 $editorSettings = [];

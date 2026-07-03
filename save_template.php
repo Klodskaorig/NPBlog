@@ -47,13 +47,6 @@ if (!is_writable($templatesDir)) {
     exit;
 }
 
-$templateFile = $templatesDir . $name . '.html';
-if (@file_put_contents($templateFile, $code) === false) {
-    echo json_encode(['success' => false, 'error' => 'Не удалось сохранить файл шаблона']);
-    exit;
-}
-@chmod($templateFile, 0666);
-
 $settingsFile = $templatesDir . 'settings.json';
 $settings = [];
 if (file_exists($settingsFile)) {
@@ -64,13 +57,43 @@ if (!isset($settings['templates'])) {
     $settings['templates'] = [];
 }
 
+$path = '';
+if (isset($settings['templates'][$name])) {
+    $path = isset($settings['templates'][$name]['path']) ? $settings['templates'][$name]['path'] : '';
+}
+
+if (empty($path)) {
+    if ($name === 'main') {
+        $path = 'NPBlog/main.html';
+    } else {
+        $path = $name . '/' . $name . '.html';
+    }
+}
+
+$templateFile = $templatesDir . $path;
+$templateSubdir = dirname($templateFile);
+if (!is_dir($templateSubdir)) {
+    @mkdir($templateSubdir, 0777, true);
+    @chmod($templateSubdir, 0777);
+}
+
+// Rewrite paths physically in the HTML file
+$rewrittenCode = rewriteTemplateRelativePaths($code, $templateFile);
+
+if (@file_put_contents($templateFile, $rewrittenCode) === false) {
+    echo json_encode(['success' => false, 'error' => 'Не удалось сохранить файл шаблона']);
+    exit;
+}
+@chmod($templateFile, 0666);
+
 // Keep is_system flag if already exists
 $isSystem = isset($settings['templates'][$name]['is_system']) ? $settings['templates'][$name]['is_system'] : false;
 
 $settings['templates'][$name] = [
     'title' => $title,
     'description' => $description,
-    'is_system' => $isSystem
+    'is_system' => $isSystem,
+    'path' => $path
 ];
 
 if (@file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {

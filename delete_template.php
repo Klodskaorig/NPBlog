@@ -34,8 +34,9 @@ if (($settings['default'] ?? 'main') === $name) {
     exit;
 }
 
-// Remove from settings templates
+$path = '';
 if (isset($settings['templates'][$name])) {
+    $path = isset($settings['templates'][$name]['path']) ? $settings['templates'][$name]['path'] : '';
     unset($settings['templates'][$name]);
 }
 
@@ -50,10 +51,42 @@ if (isset($settings['post_templates'])) {
 
 @file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-// Delete HTML file
-$templateFile = $templatesDir . $name . '.html';
-if (file_exists($templateFile)) {
-    @unlink($templateFile);
+// Delete template folder or file
+if (!empty($path)) {
+    $templateFile = $templatesDir . $path;
+    $templateSubdir = dirname($templateFile);
+    
+    // Safety check: ensure subdirectory is inside $templatesDir and is not $templatesDir itself
+    $realSubdir = realpath($templateSubdir);
+    $realTemplatesDir = realpath($templatesDir);
+    if ($realSubdir && $realTemplatesDir && strpos($realSubdir, $realTemplatesDir) === 0 && $realSubdir !== $realTemplatesDir) {
+        if (!function_exists('rrmdir')) {
+            function rrmdir($dir) {
+                if (is_dir($dir)) {
+                    $objects = scandir($dir);
+                    foreach ($objects as $object) {
+                        if ($object != "." && $object != "..") {
+                            if (is_dir($dir . "/" . $object) && !is_link($dir . "/" . $object))
+                                rrmdir($dir . "/" . $object);
+                            else
+                                @unlink($dir . "/" . $object);
+                        }
+                    }
+                    @rmdir($dir);
+                }
+            }
+        }
+        rrmdir($templateSubdir);
+    } else {
+        if (file_exists($templateFile)) {
+            @unlink($templateFile);
+        }
+    }
+} else {
+    $templateFile = $templatesDir . $name . '.html';
+    if (file_exists($templateFile)) {
+        @unlink($templateFile);
+    }
 }
 
 echo json_encode(['success' => true]);

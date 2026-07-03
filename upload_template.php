@@ -30,33 +30,9 @@ if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
 $filename = $uploadedFile['name'];
 $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-if ($ext !== 'html' && $ext !== 'htm') {
-    echo json_encode(['success' => false, 'error' => 'Разрешено загружать только файлы .html']);
+if ($ext !== 'html' && $ext !== 'htm' && $ext !== 'zip') {
+    echo json_encode(['success' => false, 'error' => 'Разрешено загружать только файлы .html или .zip']);
     exit;
-}
-
-$code = @file_get_contents($uploadedFile['tmp_name']);
-if ($code === false) {
-    echo json_encode(['success' => false, 'error' => 'Не удалось прочитать загруженный файл']);
-    exit;
-}
-
-// Validate placeholders
-$missingPlaceholders = validateTemplateCode($code);
-if (!empty($missingPlaceholders)) {
-    echo json_encode([
-        'success' => false,
-        'error' => 'В загружаемом шаблоне отсутствуют необходимые плейсхолдеры: ' . implode(', ', $missingPlaceholders),
-        'missing' => $missingPlaceholders
-    ]);
-    exit;
-}
-
-// Generate unique name
-$baseName = pathinfo($filename, PATHINFO_FILENAME);
-$cleanName = preg_replace('/[^a-zA-Z0-9_\-]/', '', $baseName);
-if (empty($cleanName)) {
-    $cleanName = 'custom_' . time();
 }
 
 $templatesDir = getDataPath('blog/templates/');
@@ -66,6 +42,7 @@ if (!is_dir($templatesDir)) {
         echo json_encode(['success' => false, 'error' => 'Не удалось создать папку для шаблонов. Проверьте права доступа.']);
         exit;
     }
+    @chmod($templatesDir, 0777);
 }
 
 if (!is_writable($templatesDir)) {
@@ -75,28 +52,151 @@ if (!is_writable($templatesDir)) {
 
 initTemplatesSystem();
 
-// Avoid overwriting system templates
-if ($cleanName === 'main') {
-    $cleanName = 'main_' . time();
+// Generate unique name for the template directory/key
+$baseName = pathinfo($filename, PATHINFO_FILENAME);
+$cleanName = preg_replace('/[^a-zA-Z0-9_\-]/', '', $baseName);
+if (empty($cleanName)) {
+    $cleanName = 'custom_' . time();
 }
 
-// Ensure unique filename
+// Avoid overwriting system templates
+if ($cleanName === 'main' || $cleanName === 'NPBlog') {
+    $cleanName = 'theme_' . time();
+}
+
+// Ensure unique folder name
 $finalName = $cleanName;
 $counter = 1;
-while (file_exists($templatesDir . $finalName . '.html')) {
+while (is_dir($templatesDir . $finalName)) {
     $finalName = $cleanName . '_' . $counter;
     $counter++;
 }
 
-// Save HTML file
-$destFile = $templatesDir . $finalName . '.html';
-if (!@move_uploaded_file($uploadedFile['tmp_name'], $destFile)) {
-    echo json_encode(['success' => false, 'error' => 'Не удалось сохранить файл шаблона']);
+$destSubdir = $templatesDir . $finalName . '/';
+if (!@mkdir($destSubdir, 0777, true)) {
+    echo json_encode(['success' => false, 'error' => 'Не удалось создать папку для шаблона']);
     exit;
 }
-@chmod($destFile, 0666);
+@chmod($destSubdir, 0777);
 
-// Update settings
+// Helper function for recursive deletion in case of errors
+function deleteUploadedTemplateDir($dir) {
+    if (!is_dir($dir)) return;
+    $files = array_diff(scandir($dir), array('.','..'));
+    foreach ($files as $file) {
+        $path = rtrim($dir, '/\\') . '/' . $file;
+        (is_dir($path)) ? deleteUploadedTemplateDir($path) : @unlink($path);
+    }
+    return @rmdir($dir);
+}
+
+// Helper to find the first html file recursively
+function findHtmlFileInDir($dir) {
+    if (!is_dir($dir)) return null;
+    $files = array_diff(scandir($dir), array('.','..'));
+    foreach ($files as $file) {
+        $path = rtrim($dir, '/\\') . '/' . $file;
+        if (is_dir($path)) {
+            $found = findHtmlFileInDir($path);
+            if ($found) return $found;
+        } else {
+            $fileExt = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            if ($fileExt === 'html' || $fileExt === 'htm') {
+                return $path;
+            }
+        }
+    }
+    return null;
+}
+
+$templatePathInSettings = '';
+
+if ($ext === 'zip') {
+    // Unpack ZIP
+    $zip = new ZipArchive;
+    if ($zip->open($uploadedFile['tmp_name']) === TRUE) {
+        $zip->extractTo($destSubdir);
+        $zip->close();
+    } else {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode(['success' => false, 'error' => 'Не удалось открыть zip архив']);
+        exit;
+    }
+    
+    // Find template html file inside
+    $htmlFile = findHtmlFileInDir($destSubdir);
+    if (!$htmlFile) {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode(['success' => false, 'error' => 'В архиве не найден файл шаблона .html']);
+        exit;
+    }
+    
+    $code = @file_get_contents($htmlFile);
+    if ($code === false) {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode(['success' => false, 'error' => 'Не удалось прочитать файл шаблона из архива']);
+        exit;
+    }
+    
+    // Validate placeholders
+    $missingPlaceholders = validateTemplateCode($code);
+    if (!empty($missingPlaceholders)) {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode([
+            'success' => false,
+            'error' => 'В файле шаблона отсутствуют необходимые плейсхолдеры: ' . implode(', ', $missingPlaceholders),
+            'missing' => $missingPlaceholders
+        ]);
+        exit;
+    }
+    
+    // Compute path relative to templates root
+    $relPath = ltrim(substr($htmlFile, strlen($templatesDir)), '/\\');
+    $relPath = str_replace('\\', '/', $relPath);
+    $relPath = preg_replace('#/+#', '/', $relPath);
+    $templatePathInSettings = $relPath;
+    
+    // Rewrite paths physically in the HTML file
+    $rewrittenCode = rewriteTemplateRelativePaths($code, $htmlFile);
+    @file_put_contents($htmlFile, $rewrittenCode);
+} else {
+    // Regular HTML file
+    $code = @file_get_contents($uploadedFile['tmp_name']);
+    if ($code === false) {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode(['success' => false, 'error' => 'Не удалось прочитать загруженный файл']);
+        exit;
+    }
+    
+    // Validate placeholders
+    $missingPlaceholders = validateTemplateCode($code);
+    if (!empty($missingPlaceholders)) {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode([
+            'success' => false,
+            'error' => 'В загружаемом шаблоне отсутствуют необходимые плейсхолдеры: ' . implode(', ', $missingPlaceholders),
+            'missing' => $missingPlaceholders
+        ]);
+        exit;
+    }
+    
+    // Save to templates/$finalName/$finalName.html
+    $destFile = $destSubdir . $finalName . '.html';
+    if (!@move_uploaded_file($uploadedFile['tmp_name'], $destFile)) {
+        deleteUploadedTemplateDir($destSubdir);
+        echo json_encode(['success' => false, 'error' => 'Не удалось сохранить файл шаблона']);
+        exit;
+    }
+    @chmod($destFile, 0666);
+    
+    $templatePathInSettings = $finalName . '/' . $finalName . '.html';
+    
+    // Rewrite paths physically in the HTML file
+    $rewrittenCode = rewriteTemplateRelativePaths($code, $destFile);
+    @file_put_contents($destFile, $rewrittenCode);
+}
+
+// Update settings.json
 $settingsFile = $templatesDir . 'settings.json';
 $settings = [];
 if (file_exists($settingsFile)) {
@@ -110,7 +210,8 @@ if (!isset($settings['templates'])) {
 $settings['templates'][$finalName] = [
     'title' => htmlspecialchars($baseName),
     'description' => 'Пользовательский шаблон, загруженный ' . date('d.m.Y H:i'),
-    'is_system' => false
+    'is_system' => false,
+    'path' => $templatePathInSettings
 ];
 
 if (@file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {

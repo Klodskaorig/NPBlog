@@ -5,16 +5,26 @@ require_once __DIR__ . '/security_bootstrap.php';
 function initTemplatesSystem() {
     $templatesDir = getDataPath('blog/templates/');
     if (!is_dir($templatesDir)) {
-        mkdir($templatesDir, 0777, true);
-        chmod($templatesDir, 0777);
+        @mkdir($templatesDir, 0777, true);
+        @chmod($templatesDir, 0777);
     }
     
-    $mainTemplateFile = $templatesDir . 'main.html';
+    $npblogDir = $templatesDir . 'NPBlog/';
+    if (!is_dir($npblogDir)) {
+        @mkdir($npblogDir, 0777, true);
+        @chmod($npblogDir, 0777);
+    }
+    
+    $mainTemplateFile = $npblogDir . 'main.html';
+    $legacyMainFile = $templatesDir . 'main.html';
     $legacyTemplateFile = getDataPath('blog/template_post.html');
     
-    // Copy template_post.html to main.html if it exists, or create a default one
+    // Copy template_post.html or main.html to NPBlog/main.html if it exists, or create a default one
     if (!file_exists($mainTemplateFile)) {
-        if (file_exists($legacyTemplateFile)) {
+        if (file_exists($legacyMainFile)) {
+            copy($legacyMainFile, $mainTemplateFile);
+            @unlink($legacyMainFile);
+        } elseif (file_exists($legacyTemplateFile)) {
             copy($legacyTemplateFile, $mainTemplateFile);
         } else {
             $basicTemplate = '<!DOCTYPE html>
@@ -63,7 +73,7 @@ function initTemplatesSystem() {
 </html>';
             file_put_contents($mainTemplateFile, $basicTemplate);
         }
-        chmod($mainTemplateFile, 0666);
+        @chmod($mainTemplateFile, 0666);
     }
     
     $settingsFile = $templatesDir . 'settings.json';
@@ -75,12 +85,23 @@ function initTemplatesSystem() {
                 'main' => [
                     'title' => 'Стандартный шаблон',
                     'description' => 'Стандартный шаблон блога с поддержкой темной темы, адаптивным дизайном и подложкой.',
-                    'is_system' => true
+                    'is_system' => true,
+                    'path' => 'NPBlog/main.html'
                 ]
             ]
         ];
         file_put_contents($settingsFile, json_encode($initialSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        chmod($settingsFile, 0666);
+        @chmod($settingsFile, 0666);
+    } else {
+        $settings = json_decode(@file_get_contents($settingsFile), true) ?: [];
+        $changed = false;
+        if (isset($settings['templates']['main']) && !isset($settings['templates']['main']['path'])) {
+            $settings['templates']['main']['path'] = 'NPBlog/main.html';
+            $changed = true;
+        }
+        if ($changed) {
+            file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        }
     }
 }
 
@@ -91,13 +112,24 @@ function getTemplatePath($postId = null) {
     
     $settings = [];
     if (file_exists($settingsFile)) {
-        $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
+        $settings = json_decode(@file_get_contents($settingsFile), true) ?: [];
     }
     
     // Check if there is a specific template assigned to this post ID
     if ($postId !== null && isset($settings['post_templates']) && isset($settings['post_templates'][$postId])) {
         $postTemplateName = $settings['post_templates'][$postId];
-        $postTemplateFile = $templatesDir . $postTemplateName . '.html';
+        $path = '';
+        if (isset($settings['templates'][$postTemplateName])) {
+            $path = isset($settings['templates'][$postTemplateName]['path']) ? $settings['templates'][$postTemplateName]['path'] : '';
+        }
+        if (empty($path)) {
+            if ($postTemplateName === 'main') {
+                $path = 'NPBlog/main.html';
+            } else {
+                $path = $postTemplateName . '.html';
+            }
+        }
+        $postTemplateFile = $templatesDir . $path;
         if (file_exists($postTemplateFile)) {
             return $postTemplateFile;
         }
@@ -106,13 +138,156 @@ function getTemplatePath($postId = null) {
     // Fallback to default template in settings
     if (isset($settings['default'])) {
         $defaultTemplateName = $settings['default'];
-        $defaultTemplateFile = $templatesDir . $defaultTemplateName . '.html';
+        $path = '';
+        if (isset($settings['templates'][$defaultTemplateName])) {
+            $path = isset($settings['templates'][$defaultTemplateName]['path']) ? $settings['templates'][$defaultTemplateName]['path'] : '';
+        }
+        if (empty($path)) {
+            if ($defaultTemplateName === 'main') {
+                $path = 'NPBlog/main.html';
+            } else {
+                $path = $defaultTemplateName . '.html';
+            }
+        }
+        $defaultTemplateFile = $templatesDir . $path;
         if (file_exists($defaultTemplateFile)) {
             return $defaultTemplateFile;
         }
     }
     
+    $fallbackFile = $templatesDir . 'NPBlog/main.html';
+    if (file_exists($fallbackFile)) {
+        return $fallbackFile;
+    }
     return $templatesDir . 'main.html';
+}
+
+function getTemplateHtml($templateFile) {
+    if (!file_exists($templateFile)) {
+        return "";
+    }
+    $html = file_get_contents($templateFile);
+    return rewriteTemplateRelativePaths($html, $templateFile);
+}
+
+function rewriteTemplateUrl($url, $subFolder) {
+    if (empty($url) || 
+        preg_match('/^(?:https?:|\/\/|#|\{\{|data:|mailto:|tel:|javascript:)/i', $url)) {
+        return $url;
+    }
+    
+    $isAbsoluteTemplate = false;
+    if (strpos($url, '/') === 0) {
+        if (stripos($url, '/templates/') === 0) {
+            $isAbsoluteTemplate = true;
+            $url = substr($url, 1);
+        } else {
+            return $url;
+        }
+    }
+    
+    if (strpos($url, './') === 0) {
+        $url = substr($url, 2);
+    }
+    
+    // Check if it starts with templates/
+    if (stripos($url, 'templates/') === 0) {
+        $url = substr($url, 10); // Strip 'templates/'
+        
+        // Get the next segment (the old template folder name)
+        $slashPos = strpos($url, '/');
+        if ($slashPos !== false) {
+            $nextSegment = substr($url, 0, $slashPos);
+            
+            // Check if this segment exists as a directory inside our template directory
+            $templatesDir = getDataPath('blog/templates/');
+            $targetDir = $templatesDir . $subFolder . '/' . $nextSegment;
+            
+            // If it does NOT exist as a directory, it's an old template folder name, so strip it!
+            if (!is_dir($targetDir)) {
+                $url = substr($url, $slashPos + 1);
+            }
+        }
+    }
+    
+    if (stripos($url, 'blog/') === 0) {
+        $url = substr($url, 5);
+    }
+    if (stripos($url, $subFolder . '/') === 0) {
+        $url = substr($url, strlen($subFolder) + 1);
+    }
+    
+    return 'templates/' . $subFolder . '/' . $url;
+}
+
+function rewriteTemplateRelativePaths($html, $templateFile) {
+    $templatesDir = realpath(getDataPath('blog/templates/'));
+    
+    $templateDirRealPath = realpath(dirname($templateFile));
+    if (!$templatesDir || !$templateDirRealPath) {
+        return $html;
+    }
+    $templateRealPath = $templateDirRealPath . '/' . basename($templateFile);
+    
+    if (strpos($templateRealPath, $templatesDir) === 0) {
+        $relPath = ltrim(substr($templateRealPath, strlen($templatesDir)), '/\\');
+        $relPath = str_replace('\\', '/', $relPath);
+        $dirPart = dirname($relPath);
+        
+        if ($dirPart !== '.' && !empty($dirPart)) {
+            if ($dirPart === 'NPBlog') {
+                return $html;
+            }
+            
+            // Rewrite src="..." and href="..."
+            $html = preg_replace_callback('/(src|href)=["\'](.*?)["\']/i', function($matches) use ($dirPart) {
+                $attr = $matches[1];
+                $url = $matches[2];
+                $newUrl = rewriteTemplateUrl($url, $dirPart);
+                return $attr . '="' . $newUrl . '"';
+            }, $html);
+            
+            // Rewrite url(...) in CSS/style blocks
+            $html = preg_replace_callback('/url\(["\']?(.*?)["\']?\)/i', function($matches) use ($dirPart) {
+                $url = $matches[1];
+                $newUrl = rewriteTemplateUrl($url, $dirPart);
+                return 'url("' . $newUrl . '")';
+            }, $html);
+        }
+    }
+    return $html;
+}
+
+function replaceCustomFontsPlaceholder($html, $customFontsCss) {
+    if (empty($customFontsCss)) {
+        return str_replace('{{CUSTOM_FONTS}}', '', $html);
+    }
+    
+    $placeholder = '{{CUSTOM_FONTS}}';
+    $pos = 0;
+    while (($pos = strpos($html, $placeholder, $pos)) !== false) {
+        $before = substr($html, 0, $pos);
+        $lastStyleOpen = strripos($before, '<style');
+        $lastStyleClose = strripos($before, '</style>');
+        
+        $isInsideStyle = false;
+        if ($lastStyleOpen !== false) {
+            if ($lastStyleClose === false || $lastStyleOpen > $lastStyleClose) {
+                $isInsideStyle = true;
+            }
+        }
+        
+        if ($isInsideStyle) {
+            $replacement = $customFontsCss;
+        } else {
+            $replacement = "<style id=\"npblog-custom-fonts\">\n" . $customFontsCss . "\n    </style>";
+        }
+        
+        $html = substr_replace($html, $replacement, $pos, strlen($placeholder));
+        $pos += strlen($replacement);
+    }
+    
+    return $html;
 }
 
 function validateTemplateCode($code) {
@@ -351,7 +526,7 @@ $content = preg_replace('/(?:https?:\/\/[^\/]+)?(?:\/)?serve_data.php\?file=/i',
     }
     
     // Read the template
-    $templateHtml = file_get_contents($templateFile);
+    $templateHtml = getTemplateHtml($templateFile);
     
     // Get custom fonts
     require_once __DIR__ . '/get_custom_fonts_css.php';
@@ -372,7 +547,7 @@ $content = preg_replace('/(?:https?:\/\/[^\/]+)?(?:\/)?serve_data.php\?file=/i',
     }
     $newHtml = str_replace('{{CONTENT}}', $wrappedContent, $newHtml);
     $newHtml = str_replace('{{META_TAGS}}', $seoMetaBlock, $newHtml);
-    $newHtml = str_replace('{{CUSTOM_FONTS}}', $customFontsCss, $newHtml);
+    $newHtml = replaceCustomFontsPlaceholder($newHtml, $customFontsCss);
 
     $editorSettingsFile = __DIR__ . '/editor_settings.json';
     $editorSettings = [];

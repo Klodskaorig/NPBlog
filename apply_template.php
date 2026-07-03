@@ -23,7 +23,18 @@ if (!file_exists($settingsFile)) {
 
 $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
 
-$templateFile = $templatesDir . $templateName . '.html';
+$path = '';
+if (isset($settings['templates'][$templateName])) {
+    $path = isset($settings['templates'][$templateName]['path']) ? $settings['templates'][$templateName]['path'] : '';
+}
+if (empty($path)) {
+    if ($templateName === 'main') {
+        $path = 'NPBlog/main.html';
+    } else {
+        $path = $templateName . '.html';
+    }
+}
+$templateFile = $templatesDir . $path;
 if (!file_exists($templateFile)) {
     echo json_encode(['success' => false, 'error' => 'Файл шаблона не найден']);
     exit;

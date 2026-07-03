@@ -4408,7 +4408,7 @@ body {
 }
 
 /* --- Адаптивность хедера при изменении размеров экрана --- */
-@media (max-width: 1285px) {
+@media (max-width: 1450px) {
     body {
         padding-top: 116px !important;
     }
@@ -4808,7 +4808,7 @@ body.header-bottom .color-picker-wrap.is-open .color-palette-popover {
 }
 
 /* Responsive adjustments for bottom header */
-@media (max-width: 1285px) {
+@media (max-width: 1450px) {
     body.header-bottom {
         padding-top: 0 !important;
         padding-bottom: 116px !important;
@@ -5002,4 +5002,235 @@ body.markdown-mode #divider-media {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+}
+
+/* --- РЕЖИМ КАСТОМИЗАЦИИ ВЕРХНЕЙ ПАНЕЛИ --- */
+body.header-customizing .toolbar-row > * {
+    cursor: move !important;
+    position: relative;
+    user-select: none;
+}
+
+body.header-customizing .toolbar-row > *:not(.header-logo) {
+    border: 1.5px dashed var(--primary-color, #4CAF50) !important;
+    padding: 2px !important;
+    margin: 0 2px !important;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+body.header-customizing .toolbar-row > .customizer-hidden {
+    display: inline-flex !important;
+    opacity: 0.35 !important;
+    filter: grayscale(1) !important;
+}
+
+body.header-customizing .toolbar-row > *:hover:not(.header-logo) {
+    background: rgba(128, 128, 128, 0.15) !important;
+    box-shadow: 0 0 8px rgba(128, 128, 128, 0.35) !important;
+}
+
+body.header-customizing .dragging {
+    opacity: 0.25 !important;
+    border: 2.5px dashed var(--primary-color, #4CAF50) !important;
+    background: rgba(76, 175, 80, 0.1) !important;
+}
+
+/* Скрытые элементы вне режима редактирования панели */
+.toolbar-row > .customizer-hidden,
+.header-left > .customizer-hidden,
+.more-menu-dropdown > .customizer-hidden {
+    display: none !important;
+}
+
+/* По умолчанию скрываем текст кнопки */
+.format-btn .button-text {
+    display: none;
+}
+
+/* Стилизация перенесенных кнопок форматирования в меню "Прочее" */
+.more-menu-dropdown .format-btn {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    background: none !important;
+    border: none !important;
+    padding: 10px 16px !important;
+    text-align: left !important;
+    color: var(--text-color) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+}
+
+.more-menu-dropdown .format-btn:hover {
+    background: rgba(128, 128, 128, 0.1) !important;
+}
+
+.more-menu-dropdown .format-btn .button-icon {
+    display: none !important;
+}
+
+.more-menu-dropdown .format-btn .button-text {
+    display: inline !important;
+}
+
+/* Стилизация пикеров в меню "Прочее" */
+.more-menu-dropdown .font-size-picker-wrap,
+.more-menu-dropdown .font-family-picker-wrap,
+.more-menu-dropdown .color-picker-wrap {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 6px 16px !important;
+}
+
+/* Стилизация контекстного меню кастомизатора */
+.context-menu-item:hover {
+    background: var(--primary-color, #4CAF50) !important;
+    color: #ffffff !important;
+}
+
+/* Стиль хедера в режиме кастомизации */
+body.header-customizing .editor-header {
+    border-bottom: 2px dashed var(--primary-color, #4CAF50) !important;
+}
+
+body.header-customizing.header-bottom .editor-header {
+    border-top: 2px dashed var(--primary-color, #4CAF50) !important;
+    border-bottom: none !important;
+}
+
+/* Дефолтные стили для рядов панели */
+#toolbar-row-1,
+#toolbar-row-2 {
+    display: contents;
+}
+
+/* Стили двухрядного режима хедера */
+body.header-two-rows .editor-header {
+    height: 108px !important;
+    align-items: flex-start !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+}
+
+body.header-two-rows .header-left {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+}
+
+body.header-two-rows #toolbar-row-1,
+body.header-two-rows #toolbar-row-2 {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 40px !important;
+    width: 100% !important;
+}
+
+body.header-two-rows .header-right {
+    margin-top: 6px !important;
+}
+
+/* Режим кастомизации - всегда показываем два ряда как флекс-контейнеры с сеткой */
+body.header-customizing .editor-header {
+    height: 108px !important;
+    align-items: flex-start !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+}
+
+body.header-customizing .header-left {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+}
+
+body.header-customizing #toolbar-row-1,
+body.header-customizing #toolbar-row-2 {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 48px !important;
+    width: 100% !important;
+    background-image: radial-gradient(rgba(128, 128, 128, 0.15) 1.5px, transparent 1.5px) !important;
+    background-size: 16px 16px !important;
+    border: 1px dashed rgba(128, 128, 128, 0.25) !important;
+    border-radius: 8px;
+    padding: 6px 12px !important;
+    box-sizing: border-box;
+    position: relative;
+}
+
+body.header-customizing #toolbar-row-1::after,
+body.header-customizing #toolbar-row-2::after {
+    content: attr(data-placeholder);
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--text-color);
+    opacity: 0.25;
+    pointer-events: none;
+    font-weight: 600;
+}
+
+/* Пустые разделители (spacers) */
+.toolbar-spacer {
+    display: inline-block;
+    height: 24px;
+    vertical-align: middle;
+    position: relative;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+body.header-customizing .toolbar-spacer {
+    border: 1.5px dashed var(--primary-color, #4CAF50) !important;
+    background: rgba(76, 175, 80, 0.08) !important;
+    min-width: 16px !important;
+    margin: 0 4px !important;
+    border-radius: 4px;
+}
+
+/* Ползунок изменения ширины пустого разделителя */
+.spacer-resize-handle {
+    display: none;
+}
+
+body.header-customizing .spacer-resize-handle {
+    display: block;
+    position: absolute;
+    right: -2px;
+    top: -2px;
+    bottom: -2px;
+    width: 6px;
+    cursor: ew-resize;
+    background: var(--primary-color, #4CAF50);
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+body.header-customizing .toolbar-spacer:hover .spacer-resize-handle {
+    opacity: 0.7;
+}
+
+body.header-customizing .toolbar-spacer .spacer-resize-handle:hover {
+    opacity: 1;
+}
+
+.customizer-dropdown-item:hover {
+    background: var(--primary-color, #4CAF50) !important;
+    color: #ffffff !important;
 }
