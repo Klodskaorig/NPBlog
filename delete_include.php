@@ -14,9 +14,9 @@ if (!isset($data['filename'])) {
     exit;
 }
 
-$filename = basename($data['filename']);
 $includesDir = 'includes/';
-$filepath = $includesDir . $filename;
+$filepath = validateSafePath($includesDir, $data['filename']);
+$filename = basename($filepath);
 
 // Защита от удаления важных файлов
 if ($filename === 'includes-meta.json' || !file_exists($filepath)) {

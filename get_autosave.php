@@ -7,7 +7,7 @@ $id = isset($data['id']) ? $data['id'] : null;
 
 if ($id) {
     // Загружаем конкретное автосохранение по ID
-    $filepath = 'autosave/autosave_' . $id . '.json';
+    $filepath = validateSafePath('autosave/', 'autosave_' . $id . '.json');
     
     if (file_exists($filepath)) {
         $content = file_get_contents($filepath);

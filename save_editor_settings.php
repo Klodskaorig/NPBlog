@@ -70,6 +70,25 @@ if (isset($data['data_path'])) {
     $existingSettings['data_path'] = trim($data['data_path']);
 }
 
+if (isset($data['rss_enabled'])) {
+    $existingSettings['rss_enabled'] = (bool)$data['rss_enabled'];
+}
+if (isset($data['rss_base_url'])) {
+    $existingSettings['rss_base_url'] = trim($data['rss_base_url']);
+}
+if (isset($data['rss_title'])) {
+    $existingSettings['rss_title'] = trim($data['rss_title']);
+}
+if (isset($data['rss_description'])) {
+    $existingSettings['rss_description'] = trim($data['rss_description']);
+}
+if (isset($data['rss_use_first_line'])) {
+    $existingSettings['rss_use_first_line'] = (bool)$data['rss_use_first_line'];
+}
+if (isset($data['rss_content_template'])) {
+    $existingSettings['rss_content_template'] = $data['rss_content_template'];
+}
+
 if (isset($data['ip_whitelist_enabled'])) {
     $ipWhitelistEnabled = (bool)$data['ip_whitelist_enabled'];
     $existingSettings['ip_whitelist_enabled'] = $ipWhitelistEnabled;
@@ -129,6 +148,8 @@ if (isset($data['password_enabled'])) {
 
 // Сохраняем настройки
 if (file_put_contents($settingsFile, json_encode($existingSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
+    require_once __DIR__ . '/rss_helper.php';
+    generateRssFeed();
     echo json_encode(['success' => true]);
 } else {
     echo json_encode(['success' => false, 'error' => 'Не удалось сохранить настройки']);

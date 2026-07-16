@@ -20,7 +20,7 @@ if (!file_exists('draft')) {
 // Генерируем уникальное имя файла
 $timestamp = time();
 $filename = $timestamp . '.json';
-$filepath = 'draft/' . $filename;
+$filepath = validateSafePath('draft/', $filename);
 
 // Сохраняем черновик
 $draft = [

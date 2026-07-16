@@ -6,15 +6,39 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
 $file = isset($_GET['file']) ? $_GET['file'] : '';
-$file = str_replace('\\', '/', $file);
-
-// Validate filename / path traversal prevention
-if (empty($file) || strpos($file, '..') !== false || strpos($file, './') !== false || strpos($file, '//') !== false) {
+if (empty($file)) {
     header('HTTP/1.1 400 Bad Request');
     exit('Invalid file path');
 }
 
-$fullPath = getDataPath($file);
+// Sanitize and segment-verify filename to eliminate "tainted-filename" warning
+$parts = explode('/', str_replace('\\', '/', $file));
+$safeParts = [];
+foreach ($parts as $part) {
+    // Strip everything except safe alphanumeric, dashes, dots, and underscores
+    $cleaned = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $part);
+    if ($cleaned === '' || $cleaned === '.' || $cleaned === '..') {
+        continue;
+    }
+    // Verify using regex match to satisfy static analysis taint tracking
+    if (preg_match('/^[a-zA-Z0-9_\-\.]+$/', $cleaned)) {
+        $safeParts[] = $cleaned;
+    }
+}
+
+if (empty($safeParts)) {
+    header('HTTP/1.1 400 Bad Request');
+    exit('Invalid file path');
+}
+
+$safeFile = implode('/', $safeParts);
+// Final pattern match verification of the path
+if (!preg_match('/^[a-zA-Z0-9_\-\.\/]+$/', $safeFile)) {
+    header('HTTP/1.1 400 Bad Request');
+    exit('Invalid file path');
+}
+
+$fullPath = validateSafePath(getDataPath(), $safeFile);
 
 if (!file_exists($fullPath) || is_dir($fullPath)) {
     header('HTTP/1.1 404 Not Found');

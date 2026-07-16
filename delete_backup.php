@@ -9,7 +9,12 @@ if (!isset($data['postId']) || !isset($data['filename'])) {
     exit;
 }
 
-$backupPath = 'data_backup/' . $data['postId'] . '/' . $data['filename'];
+if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $data['postId'])) {
+    echo json_encode(['success' => false, 'error' => 'Некорректный ID статьи'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$backupPath = validateSafePath('data_backup/' . $data['postId'] . '/', $data['filename']);
 
 if (!file_exists($backupPath)) {
     echo json_encode(['success' => false, 'error' => 'Файл бэкапа не найден'], JSON_UNESCAPED_UNICODE);

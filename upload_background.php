@@ -66,9 +66,19 @@ if (!is_writable($backgroundsDir)) {
 }
 
 // Генерируем имя файла
-$extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+$extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+$allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+if (!in_array($extension, $allowedExtensions)) {
+    echo json_encode(['success' => false, 'error' => 'Недопустимый тип файла']);
+    exit;
+}
+
 $filename = 'bg-' . $postId . '.' . $extension;
-$filepath = $backgroundsDir . $filename;
+if (!preg_match('/^bg-\d+\.[a-z]+$/', $filename)) {
+    echo json_encode(['success' => false, 'error' => 'Некорректное имя файла']);
+    exit;
+}
+$filepath = validateSafePath($backgroundsDir, $filename);
 
 // Удаляем старый фон если есть
 $oldFiles = glob($backgroundsDir . 'bg-' . $postId . '.*');
@@ -112,7 +122,7 @@ if (@move_uploaded_file($file['tmp_name'], $filepath)) {
         if (is_array($meta)) {
             foreach ($meta as $post) {
                 if ($post['id'] == $postId && isset($post['filename'])) {
-                    $htmlFile = getDataPath('blog/') . $post['filename'];
+                    $htmlFile = validateSafePath(getDataPath('blog/'), $post['filename']);
                     applyBackgroundToHtml($htmlFile, $bgSettings);
                     break;
                 }

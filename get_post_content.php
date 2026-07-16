@@ -26,10 +26,10 @@ try {
         exit;
     }
     
-    $postId = $data['id'];
+    $postId = intval($data['id']);
 
     $blogDir = getDataPath('blog/');
-    $metaFile = $blogDir . 'posts-meta.json';
+    $metaFile = validateSafePath($blogDir, 'posts-meta.json');
     if (!file_exists($metaFile)) {
         echo json_encode(['success' => false, 'error' => 'Метаданные не найдены']);
         exit;
@@ -58,7 +58,7 @@ try {
     }
 
     // Читаем файл статьи
-    $filename = $blogDir . $post['filename'];
+    $filename = validateSafePath($blogDir, $post['filename']);
     if (!file_exists($filename)) {
         echo json_encode(['success' => false, 'error' => 'Файл статьи не найден: ' . $filename]);
         exit;

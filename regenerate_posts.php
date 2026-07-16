@@ -120,6 +120,9 @@ foreach ($files as $file) {
     $convertedCount++;
 }
 
+require_once __DIR__ . '/rss_helper.php';
+generateRssFeed();
+
 echo "\nКонвертация завершена!\n";
 echo "Конвертировано статей: $convertedCount\n";
 echo "Пропущено: $skippedCount\n";

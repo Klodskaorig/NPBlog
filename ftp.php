@@ -151,6 +151,7 @@ $savedCredentials = loadCredentials();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
     <title>FTP Загрузчик - NPBlog</title>
     <style>
         :root {
@@ -780,6 +781,9 @@ $savedCredentials = loadCredentials();
             if (remember) {
                 fetch('ftp.php', {
                     method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
                     body: new URLSearchParams({
                         ftpServer: ftpServer,
                         ftpUsername: ftpUsername,
@@ -818,6 +822,9 @@ $savedCredentials = loadCredentials();
             
             fetch('ftp_upload_stream.php', {
                 method: 'POST',
+                headers: {
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
                 body: formData
             })
             .then(response => {

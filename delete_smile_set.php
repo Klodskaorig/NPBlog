@@ -13,7 +13,7 @@ if (empty($setName) || $setName === '.' || $setName === '..') {
     exit;
 }
 
-$targetDir = getDataPath('smiles/') . $setName . '/';
+$targetDir = validateSafePath(getDataPath('smiles/'), $setName);
 
 if (is_dir($targetDir)) {
     // Удаляем все файлы внутри папки

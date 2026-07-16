@@ -66,9 +66,19 @@ if (!is_writable($backgroundsDir)) {
 }
 
 // Gенерируем имя файла
-$extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+$extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+$allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+if (!in_array($extension, $allowedExtensions)) {
+    echo json_encode(['success' => false, 'error' => 'Недопустимый тип файла']);
+    exit;
+}
+
 $filename = 'global-bg.' . $extension;
-$filepath = $backgroundsDir . $filename;
+if (!preg_match('/^global-bg\.[a-z]+$/', $filename)) {
+    echo json_encode(['success' => false, 'error' => 'Некорректное имя файла']);
+    exit;
+}
+$filepath = validateSafePath($backgroundsDir, $filename);
 
 // Удаляем старый глобальный фон если есть
 $oldFiles = glob($backgroundsDir . 'global-bg.*');

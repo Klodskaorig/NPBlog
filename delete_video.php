@@ -11,9 +11,8 @@ if (!isset($data['filename'])) {
     exit;
 }
 
-$filename = basename($data['filename']); // Защита от path traversal
 $videoDir = getDataPath('files/videos/');
-$filePath = $videoDir . $filename;
+$filePath = validateSafePath($videoDir, $data['filename']);
 
 if (!file_exists($filePath)) {
     echo json_encode(['success' => false, 'error' => 'Файл не найден']);

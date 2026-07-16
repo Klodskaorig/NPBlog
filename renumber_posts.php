@@ -199,7 +199,12 @@ $action = $data['action'] ?? 'check';
 if ($action === 'check') {
     echo json_encode(checkNumbering());
 } else if ($action === 'fix') {
-    echo json_encode(renumberPosts());
+    $result = renumberPosts();
+    if (isset($result['success']) && $result['success']) {
+        require_once __DIR__ . '/rss_helper.php';
+        generateRssFeed();
+    }
+    echo json_encode($result);
 } else {
     echo json_encode(['success' => false, 'error' => 'Неизвестное действие']);
 }

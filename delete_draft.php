@@ -9,8 +9,7 @@ if (!isset($data['filename'])) {
     exit;
 }
 
-$filename = basename($data['filename']);
-$filepath = 'draft/' . $filename;
+$filepath = validateSafePath('draft/', $data['filename']);
 
 if (file_exists($filepath)) {
     if (unlink($filepath)) {

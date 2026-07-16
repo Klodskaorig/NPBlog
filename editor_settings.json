@@ -5,7 +5,7 @@
     "autosaveInterval": 60,
     "tutorialCompleted": true,
     "amoledTheme": false,
-    "data_path": "\/var\/www\/html\/data",
+    "data_path": "",
     "password_hash": "",
     "failed_attempts": 0,
     "lockout_until": 0,
@@ -234,5 +234,11 @@
         }
     ],
     "headerHeight": 64,
-    "headerTwoRows": false
+    "headerTwoRows": false,
+    "rss_enabled": true,
+    "rss_base_url": "https:\/\/localhost\/",
+    "rss_title": "Мой Блог NPBlog",
+    "rss_description": "Самый крутой блог на свете",
+    "rss_use_first_line": true,
+    "rss_content_template": "Новая запись: *content*\n\n<p><a href=\"*url*\">Читать далее на сайте<\/a><\/p>"
 }

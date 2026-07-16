@@ -9,7 +9,7 @@ if (!isset($data['filename'])) {
     exit;
 }
 
-$filepath = 'includes/' . $data['filename'];
+$filepath = validateSafePath('includes/', $data['filename']);
 
 if (!file_exists($filepath)) {
     echo json_encode(['success' => false, 'error' => 'Файл не найден'], JSON_UNESCAPED_UNICODE);

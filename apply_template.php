@@ -67,6 +67,9 @@ if ($mode === 'default') {
         }
     }
     
+    require_once __DIR__ . '/rss_helper.php';
+    generateRssFeed();
+    
     echo json_encode([
         'success' => true,
         'message' => "Шаблон успешно установлен по умолчанию и применен ко всем статьям. Успешно пересоздано: $successCount, ошибок: $failCount."
@@ -90,6 +93,8 @@ if ($mode === 'default') {
     
     // Regenerate that specific post
     if (regeneratePostWithTemplate($postId, $templateFile)) {
+        require_once __DIR__ . '/rss_helper.php';
+        generateRssFeed();
         echo json_encode(['success' => true, 'message' => 'Шаблон успешно применен к выбранной статье']);
     } else {
         echo json_encode(['success' => false, 'error' => 'Не удалось пересобрать HTML файл статьи. Проверьте ее целостность.']);

@@ -70,7 +70,7 @@ if (empty($path)) {
     }
 }
 
-$templateFile = $templatesDir . $path;
+$templateFile = validateSafePath($templatesDir, $path);
 $templateSubdir = dirname($templateFile);
 if (!is_dir($templateSubdir)) {
     @mkdir($templateSubdir, 0777, true);

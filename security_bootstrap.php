@@ -3,6 +3,108 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Generate CSRF token if not exists
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Automatically validate CSRF token on POST requests (excluding CLI)
+if (php_sapi_name() !== 'cli' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfHeader = isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? $_SERVER['HTTP_X_CSRF_TOKEN'] : '';
+    $sessionToken = isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : '';
+    if (empty($sessionToken) || empty($csrfHeader) || !hash_equals($sessionToken, $csrfHeader)) {
+        header('HTTP/1.1 403 Forbidden');
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => false,
+            'error' => 'csrf_error',
+            'message' => 'Неверный или отсутствующий CSRF-токен'
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+}
+
+if (!function_exists('validateSafePath')) {
+    function validateSafePath($baseDir, $filename) {
+        $realBase = realpath($baseDir);
+        if ($realBase === false) {
+            // Attempt to create baseDir if it doesn't exist
+            if (!@mkdir($baseDir, 0777, true)) {
+                header('HTTP/1.1 500 Internal Server Error');
+                die(json_encode([
+                    'success' => false,
+                    'error' => 'filesystem_error',
+                    'message' => 'Не удалось создать директорию: ' . $baseDir
+                ], JSON_UNESCAPED_UNICODE));
+            }
+            $realBase = realpath($baseDir);
+            if ($realBase === false) {
+                header('HTTP/1.1 500 Internal Server Error');
+                die(json_encode([
+                    'success' => false,
+                    'error' => 'filesystem_error',
+                    'message' => 'Не удалось разрешить путь к директории: ' . $baseDir
+                ], JSON_UNESCAPED_UNICODE));
+            }
+        }
+        
+        $realBase = str_replace('\\', '/', $realBase);
+        $filename = str_replace('\\', '/', $filename);
+        
+        // Remove trailing slash on baseDir to ensure proper boundary match
+        $realBase = rtrim($realBase, '/');
+        
+        // Strip the base directory from the beginning of filename if it's absolute
+        $baseDirClean = rtrim(str_replace('\\', '/', $baseDir), '/');
+        if (strpos($filename, $baseDirClean . '/') === 0) {
+            $filename = substr($filename, strlen($baseDirClean) + 1);
+        } elseif (strpos($filename, $realBase . '/') === 0) {
+            $filename = substr($filename, strlen($realBase) + 1);
+        }
+        
+        // Split filename into parts and sanitize path traversal
+        $parts = explode('/', $filename);
+        $safeParts = [];
+        foreach ($parts as $part) {
+            if ($part === '' || $part === '.') {
+                continue;
+            }
+            if ($part === '..') {
+                if (empty($safeParts)) {
+                    header('HTTP/1.1 400 Bad Request');
+                    die(json_encode([
+                        'success' => false,
+                        'error' => 'security_violation',
+                        'message' => 'Обнаружена попытка выхода за пределы разрешенного каталога.'
+                    ], JSON_UNESCAPED_UNICODE));
+                }
+                array_pop($safeParts);
+            } else {
+                $safeParts[] = $part;
+            }
+        }
+        
+        $targetPath = $realBase . '/' . implode('/', $safeParts);
+        
+        // Resolve absolute target path if file exists
+        $realTarget = realpath($targetPath);
+        if ($realTarget !== false) {
+            $realTarget = str_replace('\\', '/', $realTarget);
+            if (strpos($realTarget, $realBase . '/') !== 0 && $realTarget !== $realBase) {
+                header('HTTP/1.1 400 Bad Request');
+                die(json_encode([
+                    'success' => false,
+                    'error' => 'security_violation',
+                    'message' => 'Обнаружен обход пути (Path Traversal).'
+                ], JSON_UNESCAPED_UNICODE));
+            }
+            return $realTarget;
+        }
+        
+        return $targetPath;
+    }
+}
+
 function getDataPath($subpath = '') {
     static $dataDir = null;
     if ($dataDir === null) {
@@ -280,10 +382,29 @@ function renderLoginPage($settings) {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="csrf-token" content="<?php echo isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : ''; ?>">
         <title>Вход в NPBlog</title>
         <script>
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            // Global Fetch Interceptor for login page
+            (function() {
+                const originalFetch = window.fetch;
+                window.fetch = function(input, init) {
+                    if (!init) init = {};
+                    if (!init.headers) init.headers = {};
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    if (csrfToken) {
+                        if (init.headers instanceof Headers) {
+                            init.headers.set('X-CSRF-Token', csrfToken);
+                        } else {
+                            init.headers['X-CSRF-Token'] = csrfToken;
+                        }
+                    }
+                    return originalFetch(input, init);
+                };
+            })();
         </script>
         <style>
             :root {

@@ -44,6 +44,8 @@ $targetPath = getDataPath('blog/') . $meta[$postIndex]['filename'];
 $backupContent = file_get_contents($backupPath);
 
 if (file_put_contents($targetPath, $backupContent)) {
+    require_once __DIR__ . '/rss_helper.php';
+    generateRssFeed();
     echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
 } else {
     echo json_encode(['success' => false, 'error' => 'Ошибка при восстановлении'], JSON_UNESCAPED_UNICODE);

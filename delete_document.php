@@ -8,9 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
     
     if (isset($data['filePath'])) {
-        $filePath = $data['filePath'];
+        $filePath = validateSafePath(getDataPath('files/'), $data['filePath']);
         
-        if (file_exists($filePath) && strpos(realpath($filePath), realpath(getDataPath('files/'))) === 0) {
+        if (file_exists($filePath)) {
             if (@unlink($filePath)) {
                 echo json_encode(['success' => true]);
             } else {

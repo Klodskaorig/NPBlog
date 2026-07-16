@@ -24,17 +24,16 @@ if (!file_exists('autosave')) {
     mkdir('autosave', 0755, true);
 }
 
-// Генерируем уникальный ID на основе заголовка и времени
-$titleSlug = preg_replace('/[^a-zA-Zа-яА-ЯёЁ0-9_-]/u', '_', $title);
-if (function_exists('mb_substr')) {
-    $titleSlug = mb_substr($titleSlug, 0, 50); // Ограничиваем длину
-} else {
-    $titleSlug = substr($titleSlug, 0, 50); // Фоллбэк
-}
+// Генерируем уникальный ID на основе md5 хэша заголовка и времени для защиты от tainted-filename
 $timestamp = time();
-$id = $titleSlug . '_' . $timestamp;
+$id = md5($title) . '_' . $timestamp;
 
-$filepath = 'autosave/autosave_' . $id . '.json';
+if (!preg_match('/^[a-f0-9]+_\d+$/', $id)) {
+    echo json_encode(['success' => false, 'error' => 'Некорректный ID автосохранения']);
+    exit;
+}
+
+$filepath = validateSafePath('autosave/', 'autosave_' . $id . '.json');
 
 $autosave = [
     'id' => $id,

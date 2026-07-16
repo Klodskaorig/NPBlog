@@ -6,8 +6,8 @@ require_once 'background_functions.php';
 
 // Функция для перенумерации статей (копия из renumber_posts.php)
 function renumberPostsAfterDelete() {
-    $metaFile = getDataPath('blog/posts-meta.json');
-    $backupMetaFile = 'data_backup/backup-meta.json';
+    $metaFile = validateSafePath(getDataPath('blog/'), 'posts-meta.json');
+    $backupMetaFile = validateSafePath('data_backup/', 'backup-meta.json');
     
     if (!file_exists($metaFile)) {
         return ['success' => false, 'error' => 'Файл метаданных не найден'];
@@ -48,8 +48,8 @@ function renumberPostsAfterDelete() {
             ];
             
             // Переименовываем файл статьи
-            $oldFilename = getDataPath('blog/post-') . $oldId . '.html';
-            $newFilename = getDataPath('blog/post-') . $newId . '.html';
+            $oldFilename = validateSafePath(getDataPath('blog/'), 'post-' . $oldId . '.html');
+            $newFilename = validateSafePath(getDataPath('blog/'), 'post-' . $newId . '.html');
             
             if (file_exists($oldFilename)) {
                 $content = file_get_contents($oldFilename);
@@ -64,8 +64,8 @@ function renumberPostsAfterDelete() {
                     $extension = $match[1];
                     $newBgFile = 'bg-' . $newId . '.' . $extension;
                     
-                    $oldBgPath = getDataPath('backgrounds/') . $oldBgFile;
-                    $newBgPath = getDataPath('backgrounds/') . $newBgFile;
+                    $oldBgPath = validateSafePath(getDataPath('backgrounds/'), $oldBgFile);
+                    $newBgPath = validateSafePath(getDataPath('backgrounds/'), $newBgFile);
                     
                     if (file_exists($oldBgPath)) {
                         rename($oldBgPath, $newBgPath);
@@ -80,8 +80,8 @@ function renumberPostsAfterDelete() {
             }
             
             // Переименовываем папку с бэкапами (только если статья существует)
-            $oldBackupDir = 'data_backup/' . $oldId . '/';
-            $newBackupDir = 'data_backup/' . $newId . '/';
+            $oldBackupDir = validateSafePath('data_backup/', (string)$oldId) . '/';
+            $newBackupDir = validateSafePath('data_backup/', (string)$newId) . '/';
             
             if (is_dir($oldBackupDir)) {
                 if (!is_dir($newBackupDir)) {
@@ -151,11 +151,11 @@ function renumberPostsAfterDelete() {
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
-$postId = $data['id'];
+$postId = intval($data['id']);
 
 // Загружаем метаданные
-$metaFile = getDataPath('blog/posts-meta.json');
-$backupMetaFile = 'data_backup/backup-meta.json';
+$metaFile = validateSafePath(getDataPath('blog/'), 'posts-meta.json');
+$backupMetaFile = validateSafePath('data_backup/', 'backup-meta.json');
 
 if (!file_exists($metaFile)) {
     echo json_encode(['success' => false, 'error' => 'Метаданные не найдены']);
@@ -181,7 +181,7 @@ if ($postIndex === -1) {
 $deletedPostTitle = $meta[$postIndex]['title'];
 
 // Удаляем файл статьи
-$filename = getDataPath('blog/') . $meta[$postIndex]['filename'];
+$filename = validateSafePath(getDataPath('blog/'), $meta[$postIndex]['filename']);
 if (file_exists($filename)) {
     unlink($filename);
 }
@@ -189,7 +189,7 @@ if (file_exists($filename)) {
 // Удаляем фоновое изображение статьи если есть
 $bgSettings = getPostBackground($postId);
 if ($bgSettings && isset($bgSettings['background'])) {
-    $bgFile = getDataPath('backgrounds/') . $bgSettings['background'];
+    $bgFile = validateSafePath(getDataPath('backgrounds/'), $bgSettings['background']);
     if (file_exists($bgFile)) {
         unlink($bgFile);
     }
@@ -204,8 +204,8 @@ if (file_exists($backupMetaFile)) {
     
     if (isset($backupMeta[$postId])) {
         // Переименовываем папку с бэкапов
-        $oldBackupDir = 'data_backup/' . $postId . '/';
-        $newBackupDir = 'data_backup/deleted_' . $postId . '_' . time() . '/';
+        $oldBackupDir = validateSafePath('data_backup/', (string)$postId) . '/';
+        $newBackupDir = validateSafePath('data_backup/', 'deleted_' . $postId . '_' . time()) . '/';
         
         if (is_dir($oldBackupDir)) {
             rename($oldBackupDir, $newBackupDir);
@@ -231,6 +231,9 @@ file_put_contents($metaFile, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAP
 
 // Автоматическая перенумерация после удаления
 $renumberResult = renumberPostsAfterDelete();
+
+require_once __DIR__ . '/rss_helper.php';
+generateRssFeed();
 
 echo json_encode([
     'success' => true,

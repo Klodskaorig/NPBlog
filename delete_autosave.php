@@ -10,7 +10,7 @@ if (!$id) {
     exit;
 }
 
-$filepath = 'autosave/autosave_' . $id . '.json';
+$filepath = validateSafePath('autosave/', 'autosave_' . $id . '.json');
 
 if (file_exists($filepath)) {
     if (unlink($filepath)) {

@@ -130,21 +130,21 @@ if (strpos($articleHtml, 'id="npblog-post-content"') === false) {
 $articleHtml = str_replace('{{CONTENT}}', $wrappedContent, $articleHtml);
 
 // Сохраняем файл статьи
-$filename = $blogDir . 'post-' . $nextId . '.html';
+$filename = validateSafePath($blogDir, 'post-' . $nextId . '.html');
 file_put_contents($filename, $articleHtml);
 
 // Создаем бэкап новой статьи
-$backupDir = 'data_backup/' . $nextId . '/';
+$backupDir = validateSafePath('data_backup/', (string)$nextId) . '/';
 if (!is_dir($backupDir)) {
     mkdir($backupDir, 0755, true);
 }
 
 $backupNumber = 1;
-$backupFilename = $backupDir . $nextId . '-' . $backupNumber . '.html';
+$backupFilename = validateSafePath($backupDir, $nextId . '-' . $backupNumber . '.html');
 file_put_contents($backupFilename, $articleHtml);
 
 // Сохраняем метаданные бэкапа
-$backupMetaFile = 'data_backup/backup-meta.json';
+$backupMetaFile = validateSafePath('data_backup/', 'backup-meta.json');
 $backupMeta = [];
 if (file_exists($backupMetaFile)) {
     $backupMeta = json_decode(file_get_contents($backupMetaFile), true) ?: [];
@@ -168,7 +168,7 @@ $backupMeta[$nextId]['backups'][] = [
 file_put_contents($backupMetaFile, json_encode($backupMeta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
 // Обновляем posts-meta.json для статического хостинга
-$metaFile = $blogDir . 'posts-meta.json';
+$metaFile = validateSafePath($blogDir, 'posts-meta.json');
 $meta = [];
 if (file_exists($metaFile)) {
     $meta = json_decode(file_get_contents($metaFile), true) ?: [];
@@ -182,6 +182,9 @@ $meta[] = [
 ];
 
 file_put_contents($metaFile, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+require_once __DIR__ . '/rss_helper.php';
+generateRssFeed();
 
 echo json_encode(['success' => true, 'id' => $nextId]);
 ?>

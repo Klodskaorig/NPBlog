@@ -10,7 +10,7 @@ if (!$data || !isset($data['id']) || !isset($data['title']) || !isset($data['con
     exit;
 }
 
-$postId = $data['id'];
+$postId = intval($data['id']);
 
 $allowedTags = '<b><i><u><s><sup><sub><h2><ul><li><a><p><br><img><pre><span><div><iframe><audio><source><center><details><summary><mark>';
 
@@ -67,7 +67,7 @@ function formatArticleContent($html) {
 
 $cleanContent = formatArticleContent($content);
 $blogDir = getDataPath('blog/');
-$metaFile = $blogDir . 'posts-meta.json';
+$metaFile = validateSafePath($blogDir, 'posts-meta.json');
 if (!file_exists($metaFile)) {
     echo json_encode(['success' => false, 'error' => 'Метаданные не найдены']);
     exit;
@@ -146,11 +146,11 @@ if (strpos($articleHtml, 'id="npblog-post-content"') === false) {
 $articleHtml = str_replace('{{CONTENT}}', $wrappedContent, $articleHtml);
 
 // Сохраняем обновленный файл
-$filename = $blogDir . $meta[$postIndex]['filename'];
+$filename = validateSafePath($blogDir, $meta[$postIndex]['filename']);
 file_put_contents($filename, $articleHtml);
 
 // Создаем бэкап перед обновлением
-$backupDir = 'data_backup/' . $postId . '/';
+$backupDir = validateSafePath('data_backup/', (string)$postId) . '/';
 if (!is_dir($backupDir)) {
     mkdir($backupDir, 0755, true);
 }
@@ -169,11 +169,11 @@ foreach ($existingBackups as $backup) {
 $nextBackupNumber = $maxBackupNumber + 1;
 
 // Сохраняем бэкап
-$backupFilename = $backupDir . $postId . '-' . $nextBackupNumber . '.html';
+$backupFilename = validateSafePath($backupDir, $postId . '-' . $nextBackupNumber . '.html');
 file_put_contents($backupFilename, $articleHtml);
 
 // Сохраняем метаданные бэкапа
-$backupMetaFile = 'data_backup/backup-meta.json';
+$backupMetaFile = validateSafePath('data_backup/', 'backup-meta.json');
 $backupMeta = [];
 if (file_exists($backupMetaFile)) {
     $backupMeta = json_decode(file_get_contents($backupMetaFile), true) ?: [];
@@ -201,6 +201,9 @@ file_put_contents($backupMetaFile, json_encode($backupMeta, JSON_PRETTY_PRINT | 
 $meta[$postIndex]['title'] = $data['title'];
 // Дату НЕ обновляем - она остается оригинальной
 file_put_contents($metaFile, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+require_once __DIR__ . '/rss_helper.php';
+generateRssFeed();
 
 echo json_encode(['success' => true]);
 ?>

@@ -70,11 +70,18 @@ foreach ($names as $i => $name) {
     }
     
     $safeName = $baseName . '.gif';
-    $destPath = $targetDir . $safeName;
+    if (!preg_match('/^[a-zA-Z0-9_\-]+\.gif$/', $safeName)) {
+        continue;
+    }
+    $destPath = validateSafePath($targetDir, $safeName);
     
     $counter = 1;
     while (file_exists($destPath)) {
-        $destPath = $targetDir . $baseName . '_' . $counter . '.gif';
+        $candidateName = $baseName . '_' . $counter . '.gif';
+        if (!preg_match('/^[a-zA-Z0-9_\-]+\.gif$/', $candidateName)) {
+            break;
+        }
+        $destPath = validateSafePath($targetDir, $candidateName);
         $counter++;
     }
 

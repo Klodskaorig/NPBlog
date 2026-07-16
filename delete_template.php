@@ -53,7 +53,7 @@ if (isset($settings['post_templates'])) {
 
 // Delete template folder or file
 if (!empty($path)) {
-    $templateFile = $templatesDir . $path;
+    $templateFile = validateSafePath($templatesDir, $path);
     $templateSubdir = dirname($templateFile);
     
     // Safety check: ensure subdirectory is inside $templatesDir and is not $templatesDir itself
@@ -83,7 +83,7 @@ if (!empty($path)) {
         }
     }
 } else {
-    $templateFile = $templatesDir . $name . '.html';
+    $templateFile = validateSafePath($templatesDir, $name . '.html');
     if (file_exists($templateFile)) {
         @unlink($templateFile);
     }

@@ -14,10 +14,42 @@ if (file_exists($settingsFile)) {
 <head>
     <title>Редактор</title>
     <meta charset="utf-8">
+    <meta name="csrf-token" content="<?php echo isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : ''; ?>">
     <script>
         if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
         if(/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('is-android');
         const DATA_URL_PREFIX = '<?php echo getDataUrl(); ?>';
+        
+        // Global Fetch Interceptor to automatically append CSRF Token headers
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(input, init) {
+                if (!init) init = {};
+                if (!init.headers) init.headers = {};
+                
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                if (csrfToken) {
+                    if (init.headers instanceof Headers) {
+                        init.headers.set('X-CSRF-Token', csrfToken);
+                    } else if (Array.isArray(init.headers)) {
+                        let found = false;
+                        for (let i = 0; i < init.headers.length; i++) {
+                            if (init.headers[i][0].toLowerCase() === 'x-csrf-token') {
+                                init.headers[i][1] = csrfToken;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            init.headers.push(['X-CSRF-Token', csrfToken]);
+                        }
+                    } else {
+                        init.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                }
+                return originalFetch(input, init);
+            };
+        })();
     </script>
     <link rel="stylesheet" href="editor-style.css?v=1779014532">
 </head>
@@ -292,7 +324,7 @@ if (file_exists($settingsFile)) {
                     <?php if (!empty($passwordHash)): ?>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="lockEditor()" style="color: #ef4444; font-weight: 600; border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 8px;">Заблокировать</button>
                     <?php endif; ?>
-                    <div class="editor-menu-version">ver 2.213.2</div>
+                    <div class="editor-menu-version">ver 2.214</div>
                 </div>
             </div>
         </div>
@@ -1023,7 +1055,10 @@ if (file_exists($settingsFile)) {
             <button type="button" onclick="showGlobalSection('rss')" class="global-nav-btn" data-section="rss" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
                 RSS Виджет
             </button>
-            <button type="button" onclick="showGlobalSection('security')" class="global-nav-btn" data-section="security" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
+            <button type="button" id="nav-btn-rss_feed" onclick="showGlobalSection('rss_feed')" class="global-nav-btn" data-section="rss_feed" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
+                RSS Лента
+            </button>
+            <button type="button" id="nav-btn-security" onclick="showGlobalSection('security')" class="global-nav-btn" data-section="security" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
                 Безопасность
             </button>
             <button type="button" onclick="showGlobalSection('seo')" class="global-nav-btn" data-section="seo" style="display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: transparent; color: var(--text-color); border: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: background 0.2s;">
@@ -1266,6 +1301,65 @@ if (file_exists($settingsFile)) {
                     <p style="color: var(--text-color); font-size: 13px; margin: 0; line-height: 1.5;">
                         💡 <strong>Совет по стилизации:</strong> Вы можете полностью изменить внешний вид ссылки виджета на вашем сайте с помощью CSS стилей для класса <code>.npblog-rss-link</code>, прописав его в файле стилей вашего сайта.
                     </p>
+                </div>
+            </div>
+            
+            <!-- Секция: RSS Лента -->
+            <div id="globalSection-rss_feed" class="global-section" style="display: none;">
+                <p style="color: var(--text-color); margin-bottom: 20px; opacity: 0.8;">Настройте автоматическую генерацию RSS ленты (XML-файла) для вашего блога.</p>
+                
+                <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="rssFeedEnabled" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                        <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Включить автоматическую генерацию RSS</span>
+                    </label>
+                    <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 8px; opacity: 0.8;">
+                        Если включено, файл <code>feed.xml</code> будет создаваться и обновляться автоматически в корне папки <code>data</code> при сохранении/редактировании/удалении статей.
+                    </p>
+                </div>
+                
+                <div id="rssFeedSettingsDetails" style="display: none;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Базовый URL сайта (Base URL):</label>
+                        <input type="text" id="rssFeedBaseUrl" placeholder="https://myblog.ru" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; box-sizing: border-box;">
+                        <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 5px; opacity: 0.8;">
+                            Необходим для формирования абсолютных URL-ссылок на ваши статьи в RSS-ленте (например, <code>https://myblog.ru</code>).
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Название RSS-канала (Title):</label>
+                        <input type="text" id="rssFeedTitle" placeholder="NPBlog Feed" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; box-sizing: border-box;">
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Описание RSS-канала (Description):</label>
+                        <input type="text" id="rssFeedDescription" placeholder="NPBlog RSS Feed" style="display: block; width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="rssFeedUseFirstLine" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                            <span style="color: var(--text-color); font-weight: 500; font-size: 16px;">Брать только первую строку статьи в описание</span>
+                        </label>
+                        <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 8px; opacity: 0.8;">
+                            Если включено, в содержание поста для RSS будет попадать только первая текстовая строка. Если выключено — будет передаваться весь HTML-код содержимого статьи.
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">Шаблон содержания элемента фида:</label>
+                        <textarea id="rssFeedContentTemplate" style="display: block; width: 100%; height: 120px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-family: monospace; font-size: 13px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <p style="color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 5px; opacity: 0.8; line-height: 1.4;">
+                            Используйте плейсхолдеры для подстановки данных:<br>
+                            <code>*content*</code> — Текст/HTML статьи (вся статья или только первая строка в зависимости от настройки выше).<br>
+                            <code>*url*</code> — Полная ссылка на статью в блоге.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <button type="button" onclick="saveRssFeedSettings()" class="global-action-btn global-action-btn-primary">Сохранить настройки RSS</button>
                 </div>
             </div>
 
@@ -1987,6 +2081,7 @@ function showGlobalSection(sectionName) {
         'appearance': 'Внешний вид',
         'experimental': 'Экспериментальные функции',
         'rss': 'Интеграция RSS (Виджет)',
+        'rss_feed': 'RSS Лента (XML)',
         'security': 'Безопасность и доступ',
         'seo': 'SEO и соцсети'
     };
@@ -2003,6 +2098,8 @@ function showGlobalSection(sectionName) {
         loadExperimentalSettings();
     } else if (sectionName === 'rss') {
         loadRssSection();
+    } else if (sectionName === 'rss_feed') {
+        loadAndApplyAllSettings();
     } else if (sectionName === 'security') {
         loadSecuritySettings();
     } else if (sectionName === 'seo') {
@@ -3053,6 +3150,31 @@ function loadAndApplyAllSettings() {
                     }
                 }
                 
+                // RSS Лента
+                const rssEnabled = settings.rss_enabled || false;
+                const rssBaseUrl = settings.rss_base_url || '';
+                const rssTitle = settings.rss_title || 'NPBlog Feed';
+                const rssDesc = settings.rss_description || 'NPBlog RSS Feed';
+                const rssUseFirstLine = (settings.rss_use_first_line !== undefined) ? settings.rss_use_first_line : true;
+                const rssContentTemplate = settings.rss_content_template || '*content*\n\n<p><a href="*url*">Читать в блоге</a></p>';
+
+                const rssFeedEnabledCheck = document.getElementById('rssFeedEnabled');
+                const rssFeedBaseUrlInput = document.getElementById('rssFeedBaseUrl');
+                const rssFeedTitleInput = document.getElementById('rssFeedTitle');
+                const rssFeedDescriptionInput = document.getElementById('rssFeedDescription');
+                const rssFeedUseFirstLineCheck = document.getElementById('rssFeedUseFirstLine');
+                const rssFeedContentTemplateInput = document.getElementById('rssFeedContentTemplate');
+
+                if (rssFeedEnabledCheck) {
+                    rssFeedEnabledCheck.checked = rssEnabled;
+                    document.getElementById('rssFeedSettingsDetails').style.display = rssEnabled ? 'block' : 'none';
+                }
+                if (rssFeedBaseUrlInput) rssFeedBaseUrlInput.value = rssBaseUrl;
+                if (rssFeedTitleInput) rssFeedTitleInput.value = rssTitle;
+                if (rssFeedDescriptionInput) rssFeedDescriptionInput.value = rssDesc;
+                if (rssFeedUseFirstLineCheck) rssFeedUseFirstLineCheck.checked = rssUseFirstLine;
+                if (rssFeedContentTemplateInput) rssFeedContentTemplateInput.value = rssContentTemplate;
+                
                 // 3. Безопасность
                 const dataPath = settings.data_path || '/var/www/html/data';
                 const passwordEnabled = settings.password_set || false;
@@ -3353,6 +3475,56 @@ function saveSecuritySettings() {
     .catch(error => {
         console.error('Ошибка:', error);
         showAlert('Ошибка сохранения настроек безопасности');
+    });
+}
+
+// Настройка интерактивного переключения отображения деталей RSS настроек
+document.addEventListener('DOMContentLoaded', () => {
+    const rssFeedEnabledCheck = document.getElementById('rssFeedEnabled');
+    if (rssFeedEnabledCheck) {
+        rssFeedEnabledCheck.addEventListener('change', function() {
+            const details = document.getElementById('rssFeedSettingsDetails');
+            if (details) {
+                details.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    }
+});
+
+function saveRssFeedSettings() {
+    const rssEnabled = document.getElementById('rssFeedEnabled').checked;
+    const rssBaseUrl = document.getElementById('rssFeedBaseUrl').value.trim();
+    const rssTitle = document.getElementById('rssFeedTitle').value.trim();
+    const rssDescription = document.getElementById('rssFeedDescription').value.trim();
+    const rssUseFirstLine = document.getElementById('rssFeedUseFirstLine').checked;
+    const rssContentTemplate = document.getElementById('rssFeedContentTemplate').value;
+
+    fetch('save_editor_settings.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            rss_enabled: rssEnabled,
+            rss_base_url: rssBaseUrl,
+            rss_title: rssTitle,
+            rss_description: rssDescription,
+            rss_use_first_line: rssUseFirstLine,
+            rss_content_template: rssContentTemplate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Настройки RSS ленты успешно сохранены!');
+            loadAndApplyAllSettings();
+        } else {
+            showAlert('Ошибка при сохранении настроек: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        showAlert('Ошибка при сохранении настроек RSS ленты');
     });
 }
 
