@@ -5234,3 +5234,26 @@ body.header-customizing .toolbar-spacer .spacer-resize-handle:hover {
     background: var(--primary-color, #4CAF50) !important;
     color: #ffffff !important;
 }
+/* Import Dialog Tabs */
+.import-tab {
+    transition: all 0.2s ease;
+}
+.import-tab:hover {
+    opacity: 0.8;
+}
+.import-tab.active {
+    opacity: 1;
+    border-bottom-color: var(--primary-color, #4CAF50) !important;
+}
+.import-tab-content {
+    animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Import Post List */
+.import-post-checkbox:checked {
+    accent-color: var(--primary-color, #4CAF50);
+}

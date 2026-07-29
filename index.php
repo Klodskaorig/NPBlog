@@ -317,6 +317,7 @@ if (file_exists($settingsFile)) {
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openGlobalSettings()">Параметры</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openBackupManager()">Менеджер бэкапов</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="openAutosaveManager()">Менеджер автосохранений</button>
+                    <button type="button" class="editor-menu-item" role="menuitem" onclick="openImportDialog()">Импорт из Blogger/WordPress</button>
                     <button type="button" class="editor-menu-item" id="theme-toggle" role="menuitem">Изменить тему</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='ftp.php'">Опубликовать по FTP</button>
                     <button type="button" class="editor-menu-item" role="menuitem" onclick="window.location.href='<?php echo getDataUrl('blog.html'); ?>'">Перейти к Blog.html</button>
@@ -482,6 +483,119 @@ if (file_exists($settingsFile)) {
             </div>
             <div class="dialog-buttons" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.02); margin:0;">
                 <button type="button" onclick="closeTemplateInstructions()" style="padding: 8px 20px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Импорт из Blogger/WordPress -->
+    <div id="importDialog" class="dialog" style="z-index: 1060; display: none;">
+        <div class="dialog-content" style="width: 700px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; padding: 0; border-radius: 12px; overflow: hidden;">
+            <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <h3 style="margin: 0; font-size: 1.3rem; font-weight: 600;">Импорт из Blogger / WordPress</h3>
+                <button type="button" class="close-btn" onclick="closeImportDialog()" style="background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.6; line-height: 1; padding: 4px;">×</button>
+            </div>
+            
+            <!-- Tabs -->
+            <div style="display: flex; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <button type="button" class="import-tab active" data-tab="blogger" onclick="switchImportTab('blogger')" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-color);">Blogger</button>
+                <button type="button" class="import-tab" data-tab="wordpress" onclick="switchImportTab('wordpress')" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-color); opacity: 0.6;">WordPress</button>
+                <button type="button" class="import-tab" data-tab="feed" onclick="switchImportTab('feed')" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-color); opacity: 0.6;">RSS/Atom</button>
+            </div>
+            
+            <div class="dialog-body" style="padding: 24px; overflow-y: auto; flex: 1;">
+                <!-- Blogger Tab -->
+                <div id="import-blogger" class="import-tab-content" style="display: block;">
+                    <p style="margin-top: 0; margin-bottom: 20px; font-size: 13px; line-height: 1.5; color: var(--text-color); opacity: 0.8;">Импорт записей из блога Blogger через Google Blogger API v3. Вам понадобится <a href="https://developers.google.com/blogger/docs/3.0/getting_started" target="_blank" style="color: var(--primary-color, #4CAF50);">API ключ Google</a>.</p>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">ID блога (Blog ID)</label>
+                        <input type="text" id="bloggerBlogId" placeholder="Например: 12345678901234567890" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: var(--bg-color); color: var(--text-color);">
+                        <div style="font-size: 11px; opacity: 0.6; margin-top: 4px;">ID можно найти в URL админ-панели Blogger: blogger.com/blogger.g?blogID=XXXXX</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">API ключ Google</label>
+                        <input type="password" id="bloggerApiKey" placeholder="Введите API ключ" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: var(--bg-color); color: var(--text-color);">
+                    </div>
+                    
+                    <button type="button" onclick="fetchBloggerPosts()" style="padding: 10px 24px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">📥 Загрузить записи</button>
+                </div>
+                
+                <!-- WordPress Tab -->
+                <div id="import-wordpress" class="import-tab-content" style="display: none;">
+                    <p style="margin-top: 0; margin-bottom: 20px; font-size: 13px; line-height: 1.5; color: var(--text-color); opacity: 0.8;">Импорт записей через WordPress REST API. Сайт должен иметь открытый REST API (по умолчанию включен).</p>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">URL сайта WordPress</label>
+                        <input type="text" id="wpSiteUrl" placeholder="https://mysite.ru" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: var(--bg-color); color: var(--text-color);">
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 6px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">🔒 Для закрытых сайтов (XML-RPC):</div>
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 4px; font-size: 11px;">Имя пользователя</label>
+                            <input type="text" id="wpUsername" placeholder="admin" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; background: var(--bg-color); color: var(--text-color);">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-size: 11px;">Пароль приложения</label>
+                            <input type="password" id="wpPassword" placeholder="xxxx xxxx xxxx xxxx" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; background: var(--bg-color); color: var(--text-color);">
+                            <div style="font-size: 10px; opacity: 0.6; margin-top: 4px;">Создайте в профиле пользователя WordPress → Безопасность → Пароли приложений</div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" onclick="fetchWordpressPosts()" style="padding: 10px 24px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">📥 Загрузить записи</button>
+                </div>
+                
+                <!-- RSS/Atom Tab -->
+                <div id="import-feed" class="import-tab-content" style="display: none;">
+                    <p style="margin-top: 0; margin-bottom: 20px; font-size: 13px; line-height: 1.5; color: var(--text-color); opacity: 0.8;">Импорт через RSS 2.0 или Atom фид. Подходит для любого блога с открытым фидом.</p>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">URL фида</label>
+                        <input type="text" id="feedUrl" placeholder="https://blogger.com/feeds/12345678901234567890/posts/default" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: var(--bg-color); color: var(--text-color);">
+                        <div style="font-size: 11px; opacity: 0.6; margin-top: 4px;">Для Blogger: atom.xml или rss.xml в конце URL блога</div>
+                    </div>
+                    
+                    <button type="button" onclick="fetchFeedPosts()" style="padding: 10px 24px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">📥 Загрузить записи</button>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="importLoading" style="display: none; text-align: center; padding: 40px 20px;">
+                    <div style="font-size: 24px; margin-bottom: 12px;">⏳</div>
+                    <div style="font-size: 14px; color: var(--text-color);">Загрузка записей...</div>
+                </div>
+                
+                <!-- Results -->
+                <div id="importResults" style="display: none; margin-top: 24px;">
+                    <div style="padding: 16px; background: rgba(0,0,0,0.03); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Найдено записей: <span id="foundPostsCount">0</span></div>
+                        <div style="font-size: 12px; opacity: 0.7;">Выберите записи для импорта:</div>
+                    </div>
+                    
+                    <div id="importedPostsList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                        <!-- Posts will be listed here -->
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox" id="selectAllImport" onchange="toggleSelectAllImport()" style="width: 16px; height: 16px;"> Выбрать все
+                        </label>
+                        <button type="button" onclick="importSelectedPosts()" style="padding: 10px 24px; background: var(--primary-color, #4CAF50); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">✅ Импортировать выбранные</button>
+                    </div>
+                </div>
+                
+                <!-- Import Progress -->
+                <div id="importProgress" style="display: none; margin-top: 24px;">
+                    <div style="padding: 20px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 1px solid var(--primary-color, #4CAF50); text-align: center;">
+                        <div style="font-size: 24px; margin-bottom: 12px;">✨</div>
+                        <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Импорт завершён!</div>
+                        <div style="font-size: 13px; color: var(--text-color);">Импортировано: <span id="importedCount">0</span> | Ошибок: <span id="failedCount">0</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dialog-buttons" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.02);">
+                <button type="button" onclick="closeImportDialog()" style="padding: 8px 20px; background: none; border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Закрыть</button>
             </div>
         </div>
     </div>
@@ -5088,6 +5202,262 @@ document.addEventListener('DOMContentLoaded', function() {
     <button type="button" id="ctxTogglePosition" class="context-menu-item" style="display: block; width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; color: var(--text-color); cursor: pointer; font-size: 14px; font-weight: 500;">Перенести в "Прочее"</button>
 </div>
 
-</body>
-</html>
+<script>
+// ==========================================
+// Import Functions - Blogger/WordPress
+// ==========================================
+
+let importPostsData = [];
+let currentImportTab = 'blogger';
+
+function openImportDialog() {
+    const dialog = document.getElementById('importDialog');
+    dialog.style.display = 'block';
+    // Reset state
+    importPostsData = [];
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('importProgress').style.display = 'none';
+    document.getElementById('importLoading').style.display = 'none';
+    document.getElementById('selectAllImport').checked = false;
+}
+
+function closeImportDialog() {
+    document.getElementById('importDialog').style.display = 'none';
+}
+
+function switchImportTab(tab) {
+    currentImportTab = tab;
+    
+    // Update tab styles
+    document.querySelectorAll('.import-tab').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.opacity = '0.6';
+        btn.style.borderBottomColor = 'transparent';
+    });
+    document.querySelector(`.import-tab[data-tab="${tab}"]`).classList.add('active');
+    document.querySelector(`.import-tab[data-tab="${tab}"]`).style.opacity = '1';
+    document.querySelector(`.import-tab[data-tab="${tab}"]`).style.borderBottomColor = 'var(--primary-color, #4CAF50)';
+    
+    // Show/hide content
+    document.querySelectorAll('.import-tab-content').forEach(div => {
+        div.style.display = 'none';
+    });
+    document.getElementById(`import-${tab}`).style.display = 'block';
+    
+    // Reset state
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('importProgress').style.display = 'none';
+    importPostsData = [];
+}
+
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    container.appendChild(notification);
+    setTimeout(() => notification.remove(), 4000);
+}
+
+async function fetchBloggerPosts() {
+    const blogId = document.getElementById('bloggerBlogId').value.trim();
+    const apiKey = document.getElementById('bloggerApiKey').value.trim();
+    
+    if (!blogId) {
+        showNotification('Введите ID блога', 'error');
+        return;
+    }
+    if (!apiKey) {
+        showNotification('Введите API ключ', 'error');
+        return;
+    }
+    
+    document.getElementById('importLoading').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+    
+    try {
+        const response = await fetch('import_blog.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=fetch_blogger&blogId=${encodeURIComponent(blogId)}&apiKey=${encodeURIComponent(apiKey)}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            importPostsData = data.posts;
+            displayImportResults(data.posts);
+        } else {
+            showNotification(data.error || 'Ошибка при загрузке', 'error');
+        }
+    } catch (err) {
+        showNotification('Ошибка сети: ' + err.message, 'error');
+    } finally {
+        document.getElementById('importLoading').style.display = 'none';
+    }
+}
+
+async function fetchWordpressPosts() {
+    const siteUrl = document.getElementById('wpSiteUrl').value.trim();
+    const username = document.getElementById('wpUsername').value.trim();
+    const password = document.getElementById('wpPassword').value;
+    
+    if (!siteUrl) {
+        showNotification('Введите URL сайта', 'error');
+        return;
+    }
+    
+    document.getElementById('importLoading').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+    
+    try {
+        let action = 'fetch_wordpress';
+        let body = `action=${action}&siteUrl=${encodeURIComponent(siteUrl)}`;
+        
+        // Use XML-RPC if credentials provided
+        if (username && password) {
+            action = 'fetch_wordpress_xmlrpc';
+            body = `action=${action}&siteUrl=${encodeURIComponent(siteUrl)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        }
+        
+        const response = await fetch('import_blog.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            importPostsData = data.posts;
+            displayImportResults(data.posts);
+        } else {
+            showNotification(data.error || 'Ошибка при загрузке', 'error');
+        }
+    } catch (err) {
+        showNotification('Ошибка сети: ' + err.message, 'error');
+    } finally {
+        document.getElementById('importLoading').style.display = 'none';
+    }
+}
+
+async function fetchFeedPosts() {
+    const feedUrl = document.getElementById('feedUrl').value.trim();
+    
+    if (!feedUrl) {
+        showNotification('Введите URL фида', 'error');
+        return;
+    }
+    
+    document.getElementById('importLoading').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+    
+    try {
+        const response = await fetch('import_blog.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=fetch_feed&feedUrl=${encodeURIComponent(feedUrl)}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            importPostsData = data.posts;
+            displayImportResults(data.posts);
+        } else {
+            showNotification(data.error || 'Ошибка при загрузке', 'error');
+        }
+    } catch (err) {
+        showNotification('Ошибка сети: ' + err.message, 'error');
+    } finally {
+        document.getElementById('importLoading').style.display = 'none';
+    }
+}
+
+function displayImportResults(posts) {
+    const container = document.getElementById('importedPostsList');
+    const countSpan = document.getElementById('foundPostsCount');
+    
+    countSpan.textContent = posts.length;
+    container.innerHTML = '';
+    
+    posts.forEach((post, index) => {
+        const title = post.title || 'Без названия';
+        const date = post.published ? new Date(post.published).toLocaleDateString('ru') : '';
+        const snippet = post.content ? post.content.replace(/<[^>]+>/g, '').substring(0, 100) + '...' : '';
+        
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: flex-start; gap: 12px;';
+        item.innerHTML = `
+            <input type="checkbox" class="import-post-checkbox" data-index="${index}" style="margin-top: 4px; width: 16px; height: 16px; flex-shrink: 0;">
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(title)}</div>
+                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 4px;">${date}</div>
+                <div style="font-size: 12px; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(snippet)}</div>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+    
+    document.getElementById('importResults').style.display = 'block';
+}
+
+function toggleSelectAllImport() {
+    const selectAll = document.getElementById('selectAllImport').checked;
+    document.querySelectorAll('.import-post-checkbox').forEach(cb => {
+        cb.checked = selectAll;
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function importSelectedPosts() {
+    const checkboxes = document.querySelectorAll('.import-post-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        showNotification('Выберите хотя бы одну запись', 'error');
+        return;
+    }
+    
+    const selectedPosts = [];
+    checkboxes.forEach(cb => {
+        const index = parseInt(cb.dataset.index);
+        selectedPosts.push(importPostsData[index]);
+    });
+    
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('importLoading').style.display = 'block';
+    document.getElementById('importLoading').querySelector('div:last-child').textContent = 'Импорт записей...';
+    
+    try {
+        const response = await fetch('import_blog.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=import_posts&posts=${encodeURIComponent(JSON.stringify(selectedPosts))}`
+        });
+        
+        const data = await response.json();
+        
+        document.getElementById('importLoading').style.display = 'none';
+        document.getElementById('importProgress').style.display = 'block';
+        document.getElementById('importedCount').textContent = data.imported || 0;
+        document.getElementById('failedCount').textContent = data.failed || 0;
+        
+        if (data.imported > 0) {
+            showNotification(`Успешно импортировано ${data.imported} записей`, 'success');
+        }
+        
+        if (data.failed > 0) {
+            showNotification(`Не удалось импортировать ${data.failed} записей`, 'error');
+        }
+    } catch (err) {
+        document.getElementById('importLoading').style.display = 'none';
+        showNotification('Ошибка импорта: ' + err.message, 'error');
+    }
+}
+</script>
 
